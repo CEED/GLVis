@@ -11,6 +11,14 @@
 
 #include "stream_reader.hpp"
 
+#if defined(__has_include) && __has_include("./nvtx.hpp") && !defined(_WIN32)
+#undef NVTX_COLOR
+#define NVTX_COLOR ::nvtx::kSalmon
+#include "./nvtx.hpp"
+#else
+#define dbg(...)
+#endif
+
 using namespace std;
 using namespace mfem;
 
@@ -19,6 +27,7 @@ int StreamReader::ReadStream(
 {
    data.SetMesh(NULL);
    data.keys.clear();
+   dbg("data_type:{}", data_type);
 
    if (data_type == "fem2d_data")
    {
@@ -93,7 +102,9 @@ int StreamReader::ReadStream(
    }
    else if (data_type == "solution")
    {
+      dbg("[solution] SetMesh");
       data.SetMesh(new Mesh(is, 1, 0, data.save_coloring));
+      dbg("[solution] SetGridFunction");
       data.SetGridFunction(new GridFunction(data.mesh.get(), is));
    }
    else if (data_type == "quadrature")

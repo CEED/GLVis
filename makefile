@@ -89,8 +89,8 @@ CFLAGS ?= -O3
 XXD_FOUND := $(shell command -v xxd 2> /dev/null)
 
 # Optional compile/link flags
-GLVIS_OPTS ?=
-GLVIS_LDFLAGS ?=
+GLVIS_OPTS ?= -g -std=c++17 
+GLVIS_LDFLAGS ?= -L/opt/homebrew/opt/fmt/lib -lfmt
 
 # emcc is used when building the wasm/js version
 EMCC      ?= emcc -std=c++11
@@ -305,6 +305,9 @@ BYTECODE_FILES       = $(WEB_SOURCE_FILES:.cpp=.bc)
 
 glvis:	glvis.cpp lib/libglvis.a $(CONFIG_MK) $(MFEM_LIB_FILE)
 	$(CCC) -o glvis glvis.cpp -Llib -lglvis $(LIBS)
+
+gltst: glvis gltst.cpp
+	$(CCC) -o gltst gltst.cpp -Llib -lglvis $(LIBS)
 
 $(LOGO_FILE_CPP): $(LOGO_FILE)
 ifndef XXD_FOUND

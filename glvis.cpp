@@ -24,6 +24,14 @@
 #include <thread>
 #include <utility>
 
+#if defined(__has_include) && __has_include("lib/nvtx.hpp") && !defined(_WIN32)
+#undef NVTX_COLOR
+#define NVTX_COLOR ::nvtx::kMagenta
+#include "lib/nvtx.hpp"
+#else
+#define dbg(...)
+#endif
+
 // SDL may redefine main() as SDL_main() ostensibly to ease portability.
 // (WinMain() instead of main() is used as the entry point in a non-console
 // Windows program.)
@@ -112,6 +120,7 @@ void SwitchQuadSolution();
 bool GLVisInitVis(StreamCollection input_streams)
 {
    DataState::FieldType field_type = stream_state.GetType();
+   dbg("field_type:{}", (int)field_type);
 
    if (field_type <= DataState::FieldType::MIN
        || field_type >= DataState::FieldType::MAX)
@@ -144,8 +153,11 @@ bool GLVisInitVis(StreamCollection input_streams)
    if (field_type == DataState::FieldType::SCALAR
        || field_type == DataState::FieldType::MESH)
    {
+      dbg("SCALAR || MESH");
       if (stream_state.grid_f)
       {
+         dbg("grid_f->GetNodalValues Size:{}", stream_state.grid_f->Size());
+         dbg("stream_state.sol (Vector) Size:{}", stream_state.sol.Size());
          stream_state.grid_f->GetNodalValues(stream_state.sol);
       }
       if (stream_state.mesh->SpaceDimension() == 2)
@@ -163,6 +175,7 @@ bool GLVisInitVis(StreamCollection input_streams)
          }
          if (stream_state.grid_f)
          {
+            dbg("vss->SetGridFunction");
             vss->SetGridFunction(*stream_state.grid_f);
          }
          if (field_type == DataState::FieldType::MESH)
@@ -245,12 +258,15 @@ bool GLVisInitVis(StreamCollection input_streams)
       }
    }
 
+   dbg("vs:{}", fmt::ptr(vs));
    if (vs)
    {
       // increase the refinement factors if visualizing a GridFunction
       if (stream_state.grid_f)
       {
+         dbg("vs->AutoRefine()");
          vs->AutoRefine();
+         dbg("vs->SetShading()");
          vs->SetShading(VisualizationSceneScalarData::Shading::Noncomforming, true);
       }
       if (mesh_range > 0.0)
@@ -261,10 +277,12 @@ bool GLVisInitVis(StreamCollection input_streams)
       if (stream_state.mesh->SpaceDimension() == 2
           && field_type == DataState::FieldType::MESH)
       {
+         dbg("SetVisualizationScene(2)");
          SetVisualizationScene(vs, 2, stream_state.keys.c_str());
       }
       else
       {
+         dbg("SetVisualizationScene(3)");
          SetVisualizationScene(vs, 3, stream_state.keys.c_str());
       }
    }
@@ -1190,6 +1208,7 @@ public:
    int StartStreamSession(std::unique_ptr<mfem::socketstream> &&stream,
                           const std::string &data_type)
    {
+      dbg();
       StreamReader reader(state);
       int ierr = reader.ReadStream(*stream, data_type);
       if (ierr) { return ierr; }

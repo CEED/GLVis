@@ -17,6 +17,14 @@
 using namespace std;
 using namespace mfem;
 
+#if defined(__has_include) && __has_include("./nvtx.hpp") && !defined(_WIN32)
+#undef NVTX_COLOR
+#define NVTX_COLOR ::nvtx::kLightSkyBlue
+#include "./nvtx.hpp"
+#else
+#define dbg(...)
+#endif
+
 /// Class used for extruding vector GridFunctions
 class VectorExtrudeCoefficient : public VectorCoefficient
 {
@@ -332,6 +340,7 @@ void DataState::SetMeshSolution()
 
 void DataState::SetGridFunctionSolution(int gf_component)
 {
+   dbg("sol:{}", sol.Size());
    if (!grid_f)
    {
       type = (mesh)?(FieldType::MESH):(FieldType::UNKNOWN);
@@ -362,6 +371,7 @@ void DataState::SetGridFunctionSolution(int gf_component)
    if (grid_f->VectorDim() == 1)
    {
       grid_f->GetNodalValues(sol);
+      dbg("GetNodalValues => sol:{}", sol.Size());
       type = FieldType::SCALAR;
    }
    else

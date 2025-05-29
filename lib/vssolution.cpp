@@ -20,7 +20,17 @@
 #include "palettes.hpp"
 #include "gltf.hpp"
 
+#include <mfem.hpp>
+
 using namespace mfem;
+
+#if defined(__has_include) && __has_include("./nvtx.hpp") && !defined(_WIN32)
+#undef NVTX_COLOR
+#define NVTX_COLOR ::nvtx::kCyan
+#include "./nvtx.hpp"
+#else
+#define dbg(...)
+#endif
 
 thread_local VisualizationSceneSolution *vssol;
 extern thread_local VisualizationScene  *locscene;
@@ -424,6 +434,7 @@ VisualizationSceneSolution::VisualizationSceneSolution()
 VisualizationSceneSolution::VisualizationSceneSolution(
    Mesh &m, Vector &s, Mesh *mc, Vector *normals)
 {
+   dbg("sol:{} mc:{} normals:{}", s.Size(), fmt::ptr(mc), fmt::ptr(normals));
    mesh = &m;
    mesh_coarse = mc;
    sol = &s;
@@ -828,6 +839,7 @@ int VisualizationSceneSolution::GetRefinedValuesAndNormals(
 
 void VisualizationSceneSolution::SetShading(Shading s, bool print)
 {
+   dbg();
    if (shading == s || s <= Shading::Min)
    {
       return;
@@ -996,6 +1008,7 @@ int VisualizationSceneSolution::GetFunctionAutoRefineFactor()
 void VisualizationSceneSolution::AutoRefine()
 {
    int ref = GetAutoRefineFactor();
+   dbg("ref:{}", ref);
 
    cout << "Subdivision factors = " << ref << ", 1" << endl;
 
@@ -2033,27 +2046,97 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
 void VisualizationSceneSolution::PrepareDofNumbering()
 {
    d_nums_buf.clear();
-   const auto *fes = rsol->FESpace();
    const int ne = mesh->GetNE(), sdim = mesh->SpaceDimension();
-   FiniteElementSpace dof_fes(mesh, fes->FEColl(), sdim);
 
-   Vector vals;
-   DenseMatrix tr;
-   Array<int> dofs;
-
-   for (int e = 0; e < ne; e++)
+   if (shading == Shading::Noncomforming)
    {
-      if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
-      const auto dx = 0.05 * GetElementLengthScale(e);
-      const IntegrationRule &ir = fes->GetFE(e)->GetNodes();
-      GetRefinedValues(e, ir, vals, tr);
-      dof_fes.GetElementDofs(e, dofs);
-      for (int q = 0; q < ir.GetNPoints(); q++)
+      dbg("Shading::Noncomforming");
+      const auto *fes = rsol->FESpace();
+      FiniteElementSpace dof_fes(mesh, fes->FEColl(), sdim);
+
+      Vector vals;
+      DenseMatrix tr;
+      Array<int> dofs;
+
+      for (int e = 0; e < ne; e++)
       {
-         const real_t x[3] = {tr(0,q), tr(1,q), vals[q]};
-         DrawNumberedMarker(d_nums_buf, x, dx, dofs[q]);
+         if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
+         const auto dx = 0.05 * GetElementLengthScale(e);
+         const IntegrationRule &ir = fes->GetFE(e)->GetNodes();
+         GetRefinedValues(e, ir, vals, tr);
+         dof_fes.GetElementDofs(e, dofs);
+         assert(dofs.Size() == ir.GetNPoints());
+
+         for (int q = 0; q < ir.GetNPoints(); q++)
+         {
+            const real_t x[3] = {tr(0,q), tr(1,q), vals[q]};
+            DrawNumberedMarker(d_nums_buf, x, dx, dofs[q]);
+         }
       }
    }
+   else if (shading == Shading::Flat)
+   {
+      dbg("Shading::Flat");
+      const auto *rfes = rsol->FESpace();
+      FiniteElementSpace dof_rfes(mesh, rfes->FEColl(), sdim);
+      const int ho_ndofs = rfes->GetNDofs();
+      dbg("ho_ndofs:{}", ho_ndofs);
+
+      const FiniteElementCollection *fec = rfes->FEColl()->Clone(1);
+      FiniteElementSpace dof_fes(mesh, fec, sdim);
+
+      Vector vals;
+      DenseMatrix tr;
+      Array<int> dofs;
+
+      {
+         const LORDiscretization lor_discretization(*rsol->FESpace());
+         FiniteElementSpace &lor_fes = lor_discretization.GetFESpace();
+         // const Array<int> &dof_perm = lor_discretization.GetDofPermutation();
+         const int lor_ndofs = lor_fes.GetNDofs();
+         dbg("lor_ndofs:{}", lor_ndofs);
+         assert(ho_ndofs == lor_ndofs);
+
+         GridFunction psol(&lor_fes);
+         FiniteElementSpace flat_fes(mesh, rfes->FEColl(), sdim);
+         // GridFunction flat_sol()
+         // psol.ProjectGridFunction(*sol);
+
+         /*{
+            dbg("dof_perm:{}", dof_perm.Size());
+            for (int d = 0; d < dof_perm.Size(); ++d)
+            {
+               dbg("dof_perm[{}]: {}", d, dof_perm[d]);
+            }
+         }*/
+      }
+
+      for (int e = 0; e < ne; e++)
+      {
+         mesh->GetPointMatrix(e, tr);
+         dof_fes.GetElementDofs(e, dofs);
+
+         ShrinkPoints(tr, e, 0, 0);
+
+         const auto dx = 0.05 * GetElementLengthScale(e);
+
+         const IntegrationRule &ir = dof_fes.GetFE(e)->GetNodes();
+         assert(dofs.Size() == ir.GetNPoints());
+
+         for (int q = 0; q < ir.GetNPoints(); q++)
+         {
+            const int dof = dofs[q];
+            double u = LogVal((*sol)(dof));
+            const real_t x[3] = {tr(0,q), tr(1,q), u};
+            DrawNumberedMarker(d_nums_buf, x, dx, dof);
+         }
+      }
+   }
+   else if (shading == Shading::Smooth)
+   {
+      dbg("Shading::Smooth");
+   }
+   else { MFEM_ABORT("Shading not supported"); }
    updated_bufs.emplace_back(&d_nums_buf);
 }
 

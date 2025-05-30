@@ -25,15 +25,18 @@ using namespace mfem;
 int StreamReader::ReadStream(
    istream &is, const string &data_type)
 {
+   dbg();
    data.SetMesh(NULL);
    data.keys.clear();
-   dbg("data_type:{}", data_type);
+   dbg("data_type: '{}'", data_type);
 
    if (data_type == "fem2d_data")
    {
+      dbg("fem2d_data");
       data.type = DataState::FieldType::SCALAR;
       data.SetMesh(new Mesh(is, 0, 0, data.save_coloring));
-      data.sol.Load(is, data.mesh->GetNV());
+      data.sol1.Load(is, data.mesh->GetNV());
+      dbg("sol1:{}", data.sol1.Size());
    }
    else if (data_type == "vfem2d_data" || data_type == "vfem2d_data_keys")
    {
@@ -50,7 +53,7 @@ int StreamReader::ReadStream(
    {
       data.type = DataState::FieldType::SCALAR;
       data.SetMesh(new Mesh(is, 0, 0, data.save_coloring));
-      data.sol.Load(is, data.mesh->GetNV());
+      data.sol1.Load(is, data.mesh->GetNV());
    }
    else if (data_type == "vfem3d_data" || data_type == "vfem3d_data_keys")
    {
@@ -174,7 +177,7 @@ int StreamReader::ReadStream(
       }
 
       data.SetMesh(new Mesh(2, tot_num_vert, tot_num_elem, 0));
-      data.sol.SetSize(tot_num_vert);
+      data.sol1.SetSize(tot_num_vert);
       data.normals.SetSize(3*tot_num_vert);
 
       int v_off = 0;
@@ -185,7 +188,7 @@ int StreamReader::ReadStream(
          for (int j = 0; j < num_vert; j++)
          {
             data.mesh->AddVertex(&verts[6*j]);
-            data.sol(v_off) = verts[6*j+2];
+            data.sol1(v_off) = verts[6*j+2];
             data.normals(3*v_off+0) = verts[6*j+3];
             data.normals(3*v_off+1) = verts[6*j+4];
             data.normals(3*v_off+2) = verts[6*j+5];
@@ -240,12 +243,15 @@ int StreamReader::ReadStream(
       return 1;
    }
 
+   dbg("Run ExtrudeMeshAndSolution");
    data.ExtrudeMeshAndSolution();
+   dbg("done");
    return 0;
 }
 
 int StreamReader::ReadStreams(const StreamCollection &input_streams)
 {
+   dbg();
    const int nproc = input_streams.size();
    std::vector<Mesh*> mesh_array(nproc);
    std::vector<GridFunction*> gf_array(nproc);

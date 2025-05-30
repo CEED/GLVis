@@ -156,21 +156,23 @@ bool GLVisInitVis(StreamCollection input_streams)
       dbg("SCALAR || MESH");
       if (stream_state.grid_f)
       {
-         dbg("grid_f->GetNodalValues Size:{}", stream_state.grid_f->Size());
-         dbg("stream_state.sol (Vector) Size:{}", stream_state.sol.Size());
-         stream_state.grid_f->GetNodalValues(stream_state.sol);
+         dbg("grid_f Size:{}", stream_state.grid_f->Size());
+         stream_state.grid_f->GetNodalValues(stream_state.sol1);
+         dbg("sol1 Size:{}", stream_state.sol1.Size());
       }
       if (stream_state.mesh->SpaceDimension() == 2)
       {
+         dbg();
          VisualizationSceneSolution * vss;
          if (stream_state.normals.Size() > 0)
          {
-            vs = vss = new VisualizationSceneSolution(*stream_state.mesh, stream_state.sol,
+            vs = vss = new VisualizationSceneSolution(*stream_state.mesh, stream_state.sol1,
                                                       stream_state.mesh_quad.get(), &stream_state.normals);
          }
          else
          {
-            vs = vss = new VisualizationSceneSolution(*stream_state.mesh, stream_state.sol,
+            dbg("VisualizationSceneSolution sol1 Size:{}", stream_state.sol1.Size());
+            vs = vss = new VisualizationSceneSolution(*stream_state.mesh, stream_state.sol1,
                                                       stream_state.mesh_quad.get());
          }
          if (stream_state.grid_f)
@@ -192,7 +194,7 @@ bool GLVisInitVis(StreamCollection input_streams)
       {
          VisualizationSceneSolution3d * vss;
          vs = vss = new VisualizationSceneSolution3d(*stream_state.mesh,
-                                                     stream_state.sol, stream_state.mesh_quad.get());
+                                                     stream_state.sol1, stream_state.mesh_quad.get());
          if (stream_state.grid_f)
          {
             vss->SetGridFunction(stream_state.grid_f.get());
@@ -223,7 +225,7 @@ bool GLVisInitVis(StreamCollection input_streams)
          }
          else
          {
-            mesh_range = stream_state.sol.Max() + 1.0;
+            mesh_range = stream_state.sol1.Max() + 1.0;
          }
       }
    }
@@ -258,7 +260,7 @@ bool GLVisInitVis(StreamCollection input_streams)
       }
    }
 
-   dbg("vs:{}", fmt::ptr(vs));
+   dbg("vs:{} sol:{}", fmt::ptr(vs), fmt::ptr(vs->GetSol()));
    if (vs)
    {
       // increase the refinement factors if visualizing a GridFunction
@@ -423,6 +425,7 @@ int ScriptReadParQuadrature(istream &scr, DataState& state)
 
 int ScriptReadDisplMesh(istream &scr, DataState& state)
 {
+   dbg();
    DataState meshstate;
    string word;
 
@@ -1168,23 +1171,37 @@ public:
 
    void StartSession()
    {
+      dbg();
       auto funcThread = [](DataState thread_state, StreamCollection is)
       {
          // Set thread-local stream state
+         dbg("Set thread-local stream state");
+         dbg("thread_state.sol1: {}", thread_state.sol1.Size());
          stream_state = std::move(thread_state);
+         dbg("moved");
          if (c_plot_caption != string_none)
          {
             plot_caption = c_plot_caption;
          }
 
+         dbg("GLVisInitVis (move)?");
          if (GLVisInitVis(std::move(is)))
          {
+            dbg("GLVisStartVis!");
             GLVisStartVis();
          }
       };
+      dbg("Moving state & input_streams to handler...");
+      dbg("state.sol1: {}", state.sol1.Size());
       handler = std::thread {funcThread,
-                             std::move(state), std::move(input_streams)};
+                             std::move(state),
+                             std::move(input_streams)};
+      fflush(nullptr);
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      dbg("detaching...");
       handler.detach();
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      dbg("done");
    }
 
    bool StartSavedSession(std::string stream_file)
@@ -1211,15 +1228,19 @@ public:
       dbg();
       StreamReader reader(state);
       int ierr = reader.ReadStream(*stream, data_type);
+      dbg("ierr:{}", ierr);
       if (ierr) { return ierr; }
+      dbg("emplace_back...");
       input_streams.emplace_back(std::move(stream));
 
+      dbg("StartSession...");
       StartSession();
       return 0;
    }
 
    int StartStreamSession(StreamCollection &&streams)
    {
+      dbg();
       StreamReader reader(state);
       int ierr = reader.ReadStreams(streams);
       if (ierr) { return ierr; }
@@ -1301,7 +1322,7 @@ void GLVisServer(int portnum, bool save_stream, bool fix_elem_orient,
          cout << "GLVis: server.accept(...) failed." << endl;
 #endif
       }
-
+      dbg();
       *isock >> data_type >> ws;
 
       if (save_stream)
@@ -1382,6 +1403,7 @@ void GLVisServer(int portnum, bool save_stream, bool fix_elem_orient,
          while (1);
       }
 
+      dbg("new_session");
       Session new_session(fix_elem_orient, save_coloring);
 
       constexpr int tmp_filename_size = 50;

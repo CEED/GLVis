@@ -20,6 +20,14 @@
 #include "material.hpp"
 #include "palettes.hpp"
 
+#if defined(__has_include) && __has_include("./nvtx.hpp") && !defined(_WIN32)
+#undef NVTX_COLOR
+#define NVTX_COLOR ::nvtx::kGhostWhite
+#include "./nvtx.hpp"
+#else
+#define dbg(...)
+#endif
+
 using namespace mfem;
 
 const char *strings_off_on[] = { "off", "on" };
@@ -99,6 +107,7 @@ int VisualizationSceneScalarData::GetAutoRefineFactor()
 
 void VisualizationSceneScalarData::DoAutoscale(bool prepare)
 {
+   dbg("autoscale: {}", autoscale);
    if (autoscale == 1)
    {
       FindNewBoxAndValueRange(prepare);
@@ -1357,11 +1366,13 @@ VisualizationSceneScalarData::VisualizationSceneScalarData(
    mesh_coarse = mc;
    sol  = &s;
 
+   dbg("[NEW] mesh:{} sol:{}", mesh->GetNE(), sol->Size());
    Init();
 }
 
 void VisualizationSceneScalarData::Init()
 {
+   dbg();
    vsdata = this;
    wnd = GetAppWindow();
 

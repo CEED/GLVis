@@ -18,6 +18,14 @@
 #include "vsdata.hpp"
 #include "palettes.hpp"
 
+#if defined(__has_include) && __has_include("./nvtx.hpp") && !defined(_WIN32)
+#undef NVTX_COLOR
+#define NVTX_COLOR ::nvtx::kAquamarine
+#include "./nvtx.hpp"
+#else
+#define dbg(...)
+#endif
+
 using namespace std;
 using namespace mfem;
 
@@ -28,6 +36,7 @@ GLVisCommand::GLVisCommand(
    VisualizationSceneScalarData **_vs, DataState& state)
    : curr_state(state)
 {
+   dbg();
    vs        = _vs;
    // should be set in this thread by a call to InitVisualization()
    thread_wnd = GetAppWindow();
@@ -41,6 +50,7 @@ GLVisCommand::GLVisCommand(
 
 int GLVisCommand::lock()
 {
+   dbg();
    int my_id;
    unique_lock<mutex> scope_lock(glvis_mutex);
    if (terminating)
@@ -63,6 +73,7 @@ int GLVisCommand::lock()
 
 int GLVisCommand::signal()
 {
+   dbg();
    command_ready = true;
 
    if (thread_wnd)
@@ -75,6 +86,7 @@ int GLVisCommand::signal()
 
 void GLVisCommand::unlock()
 {
+   dbg();
    command_ready = false;
 
    lock_guard<mutex> scope_lock(glvis_mutex);
@@ -87,6 +99,7 @@ void GLVisCommand::unlock()
 
 int GLVisCommand::NewMeshAndSolution(DataState &&ss)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -102,6 +115,7 @@ int GLVisCommand::NewMeshAndSolution(DataState &&ss)
 
 int GLVisCommand::Screenshot(const char *filename)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -117,6 +131,7 @@ int GLVisCommand::Screenshot(const char *filename)
 
 int GLVisCommand::KeyCommands(const char *keys)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -132,6 +147,7 @@ int GLVisCommand::KeyCommands(const char *keys)
 
 int GLVisCommand::WindowSize(int w, int h)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -148,6 +164,7 @@ int GLVisCommand::WindowSize(int w, int h)
 
 int GLVisCommand::WindowGeometry(int x, int y, int w, int h)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -166,6 +183,7 @@ int GLVisCommand::WindowGeometry(int x, int y, int w, int h)
 
 int GLVisCommand::WindowTitle(const char *title)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -181,6 +199,7 @@ int GLVisCommand::WindowTitle(const char *title)
 
 int GLVisCommand::PlotCaption(const char *caption)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -196,6 +215,7 @@ int GLVisCommand::PlotCaption(const char *caption)
 
 int GLVisCommand::AxisLabels(const char *a_x, const char *a_y, const char *a_z)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -213,6 +233,7 @@ int GLVisCommand::AxisLabels(const char *a_x, const char *a_y, const char *a_z)
 
 int GLVisCommand::AxisNumberFormat(string formatting)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -228,6 +249,7 @@ int GLVisCommand::AxisNumberFormat(string formatting)
 
 int GLVisCommand::ColorbarNumberFormat(string formatting)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -243,6 +265,7 @@ int GLVisCommand::ColorbarNumberFormat(string formatting)
 
 int GLVisCommand::Pause()
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -257,6 +280,7 @@ int GLVisCommand::Pause()
 
 int GLVisCommand::ViewAngles(double theta, double phi)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -273,6 +297,7 @@ int GLVisCommand::ViewAngles(double theta, double phi)
 
 int GLVisCommand::Zoom(double factor)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -288,6 +313,7 @@ int GLVisCommand::Zoom(double factor)
 
 int GLVisCommand::Subdivisions(int tot, int bdr)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -304,6 +330,7 @@ int GLVisCommand::Subdivisions(int tot, int bdr)
 
 int GLVisCommand::ValueRange(double minv, double maxv)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -320,6 +347,7 @@ int GLVisCommand::ValueRange(double minv, double maxv)
 
 int GLVisCommand::Levellines(double minv, double maxv, int number)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -337,6 +365,7 @@ int GLVisCommand::Levellines(double minv, double maxv, int number)
 
 int GLVisCommand::SetShading(const char *shd)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -352,6 +381,7 @@ int GLVisCommand::SetShading(const char *shd)
 
 int GLVisCommand::ViewCenter(double x, double y)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -368,6 +398,7 @@ int GLVisCommand::ViewCenter(double x, double y)
 
 int GLVisCommand::Autoscale(const char *mode)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -383,6 +414,7 @@ int GLVisCommand::Autoscale(const char *mode)
 
 int GLVisCommand::Palette(int pal)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -398,6 +430,7 @@ int GLVisCommand::Palette(int pal)
 
 int GLVisCommand::PaletteRepeat(int n)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -413,6 +446,7 @@ int GLVisCommand::PaletteRepeat(int n)
 
 int GLVisCommand::Camera(const double cam[])
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -431,6 +465,7 @@ int GLVisCommand::Camera(const double cam[])
 
 int GLVisCommand::Autopause(const char *mode)
 {
+   dbg();
    if (lock() < 0)
    {
       return -1;
@@ -451,6 +486,7 @@ int GLVisCommand::Execute()
       return 1;
    }
 
+   dbg("command:{}", command);
    switch (command)
    {
       case NO_COMMAND:
@@ -458,6 +494,7 @@ int GLVisCommand::Execute()
 
       case NEW_MESH_AND_SOLUTION:
       {
+         dbg("[NEW_MESH_AND_SOLUTION]");
          double mesh_range = -1.0;
          if (!new_state.grid_f)
          {
@@ -481,6 +518,7 @@ int GLVisCommand::Execute()
                new_state.ExtrudeMeshAndSolution();
             }
          }
+         dbg("[NEW_MESH_AND_SOLUTION] SetNewMeshAndSolution");
          if (curr_state.SetNewMeshAndSolution(std::move(new_state), *vs))
          {
             if (mesh_range > 0.0)
@@ -503,6 +541,7 @@ int GLVisCommand::Execute()
 
       case SCREENSHOT:
       {
+         dbg("SCREENSHOT");
          cout << "Command: screenshot -> " << screenshot_filename << endl;
          // Allow SdlWindow to handle the expose and screenshot action, in case
          // any actions need to be taken before MyExpose().
@@ -512,6 +551,7 @@ int GLVisCommand::Execute()
 
       case KEY_COMMANDS:
       {
+         dbg("KEY_COMMANDS");
          cout << "Command: keys: '" << key_commands << "'" << endl;
          // SendKeySequence(key_commands.c_str());
          CallKeySequence(key_commands.c_str());
@@ -581,6 +621,7 @@ int GLVisCommand::Execute()
 
       case PAUSE:
       {
+         dbg("PAUSE");
          cout << "Command: pause: ";
          ToggleThreads();
          break;
@@ -597,6 +638,7 @@ int GLVisCommand::Execute()
 
       case ZOOM:
       {
+         dbg("ZOOM");
          cout << "Command: zoom: " << zoom_factor << endl;
          (*vs)->Zoom(zoom_factor);
          MyExpose();
@@ -633,6 +675,7 @@ int GLVisCommand::Execute()
 
       case SHADING:
       {
+         dbg("SHADING");
          cout << "Command: shading: " << flush;
          VisualizationSceneScalarData::Shading s =
             VisualizationSceneScalarData::Shading::Invalid;
@@ -673,6 +716,7 @@ int GLVisCommand::Execute()
 
       case AUTOSCALE:
       {
+         dbg("AUTOSCALE");
          cout << "Command: autoscale: " << autoscale_mode;
          if (autoscale_mode == "off")
          {
@@ -739,6 +783,7 @@ int GLVisCommand::Execute()
 
       case AUTOPAUSE:
       {
+         dbg("AUTOPAUSE");
          if (autopause_mode == "off" || autopause_mode == "0")
          {
             autopause = 0;
@@ -768,6 +813,7 @@ int GLVisCommand::Execute()
 
 void GLVisCommand::Terminate()
 {
+   dbg();
    {
       lock_guard<mutex> scope_lock(glvis_mutex);
       terminating = true;
@@ -783,6 +829,7 @@ void GLVisCommand::Terminate()
 
 void GLVisCommand::ToggleAutopause()
 {
+   dbg();
    autopause = autopause ? 0 : 1;
    cout << "Autopause: " << strings_off_on[autopause] << endl;
    if (autopause)
@@ -797,6 +844,7 @@ void GLVisCommand::ToggleAutopause()
 
 GLVisCommand::~GLVisCommand()
 {
+   dbg();
    if (num_waiting > 0)
    {
       cout << "\nGLVisCommand::~GLVisCommand() : num_waiting = "
@@ -808,6 +856,7 @@ communication_thread::communication_thread(StreamCollection _is,
                                            GLVisCommand* cmd)
    : is(std::move(_is)), glvis_command(cmd)
 {
+   dbg();
    new_m = NULL;
    new_g = NULL;
 
@@ -819,6 +868,7 @@ communication_thread::communication_thread(StreamCollection _is,
 
 communication_thread::~communication_thread()
 {
+   dbg();
    if (is.size() > 0)
    {
       terminate_thread = true;
@@ -828,7 +878,8 @@ communication_thread::~communication_thread()
 
 void communication_thread::execute()
 {
-   while (1)
+   dbg();
+   while (true)
    {
       *is[0] >> ws;
       // thread cancellation point
@@ -847,6 +898,7 @@ void communication_thread::execute()
          DataState tmp;
          if (ident == "mesh")
          {
+            dbg("mesh");
             tmp.SetMesh(new Mesh(*is[0], 1, 0, fix_elem_orient));
             if (!(*is[0]))
             {
@@ -856,11 +908,13 @@ void communication_thread::execute()
          }
          else if (ident == "solution")
          {
+            dbg("[solution] SetMesh");
             tmp.SetMesh(new Mesh(*is[0], 1, 0, fix_elem_orient));
             if (!(*is[0]))
             {
                break;
             }
+            dbg("[solution] SetGridFunction");
             tmp.SetGridFunction(new GridFunction(tmp.mesh.get(), *is[0]));
             if (!(*is[0]))
             {
@@ -869,6 +923,7 @@ void communication_thread::execute()
          }
          else if (ident == "quadrature")
          {
+            dbg("quadrature");
             tmp.SetMesh(new Mesh(*is[0], 1, 0, fix_elem_orient));
             if (!(*is[0]))
             {
@@ -882,6 +937,7 @@ void communication_thread::execute()
          }
          else if (ident == "parallel")
          {
+            dbg("parallel");
             std::vector<Mesh*> mesh_array;
             std::vector<GridFunction*> gf_array;
             std::vector<QuadratureFunction*> qf_array;

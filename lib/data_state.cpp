@@ -46,12 +46,13 @@ QuadratureFunction* Extrude1DQuadFunction(Mesh *mesh, Mesh *mesh2d,
 
 DataState &DataState::operator=(DataState &&ss)
 {
+   dbg();
    internal = std::move(ss.internal);
 
    type = ss.type;
    quad_sol = ss.quad_sol;
-
-   sol = std::move(ss.sol);
+   dbg("sol1: {}", ss.sol1.Size());
+   sol1 = std::move(ss.sol1);
    solu = std::move(ss.solu);
    solv = std::move(ss.solv);
    solw = std::move(ss.solw);
@@ -67,12 +68,14 @@ DataState &DataState::operator=(DataState &&ss)
 
 void DataState::SetMesh(Mesh *mesh_)
 {
+   dbg();
    internal.mesh.reset(mesh_);
    SetMesh(std::move(internal.mesh));
 }
 
 void DataState::SetMesh(std::unique_ptr<Mesh> &&pmesh)
 {
+   dbg();
    internal.mesh = std::move(pmesh);
    internal.mesh_quad.reset();
    if (grid_f && grid_f->FESpace()->GetMesh() != mesh.get()) { SetGridFunction(NULL); }
@@ -81,6 +84,7 @@ void DataState::SetMesh(std::unique_ptr<Mesh> &&pmesh)
 
 void DataState::SetGridFunction(GridFunction *gf, int component)
 {
+   dbg();
    internal.grid_f.reset(gf);
    SetGridFunction(std::move(internal.grid_f), component);
 }
@@ -88,6 +92,7 @@ void DataState::SetGridFunction(GridFunction *gf, int component)
 void DataState::SetGridFunction(std::unique_ptr<GridFunction> &&pgf,
                                 int component)
 {
+   dbg();
    internal.grid_f = std::move(pgf);
    internal.quad_f.reset();
    quad_sol = QuadSolution::NONE;
@@ -143,6 +148,7 @@ void DataState::SetQuadFunction(const std::vector<QuadratureFunction*>
 void DataState::SetDataCollectionField(DataCollection *dc, int ti,
                                        const char *field, bool quad, int component)
 {
+   dbg();
    internal.data_coll.reset(dc);
    data_coll->Load(ti);
    Mesh *dc_mesh = data_coll->GetMesh();
@@ -189,6 +195,7 @@ void DataState::Extrude1DMeshAndSolution()
 {
    if (mesh->Dimension() != 1 || mesh->SpaceDimension() != 1)
    {
+      dbg("nothing to do");
       return;
    }
 
@@ -212,6 +219,7 @@ void DataState::Extrude1DMeshAndSolution()
 
    if (grid_f)
    {
+      dbg("grid_f:{}", grid_f->Size());
       if (grid_f->VectorDim() > 1)
       {
          ProjectVectorFEGridFunction();
@@ -238,14 +246,15 @@ void DataState::Extrude1DMeshAndSolution()
 
       internal.grid_f.reset(grid_f_2d);
    }
-   else if (sol.Size() == mesh->GetNV())
+   else if (sol1.Size() == mesh->GetNV())
    {
+      dbg("sol1:{} from GetNV", sol1.Size());
       Vector sol2d(mesh2d->GetNV());
       for (int i = 0; i < mesh->GetNV(); i++)
       {
-         sol2d(2*i+0) = sol2d(2*i+1) = sol(i);
+         sol2d(2*i+0) = sol2d(2*i+1) = sol1(i);
       }
-      sol = sol2d;
+      sol1 = sol2d;
    }
 
    if (!mesh_quad) { internal.mesh.swap(internal.mesh_quad); }
@@ -254,7 +263,11 @@ void DataState::Extrude1DMeshAndSolution()
 
 void DataState::Extrude2D3VMeshAndSolution()
 {
-   if (mesh->SpaceDimension() == 3 || !grid_f || grid_f->VectorDim() < 3) { return; }
+   if (mesh->SpaceDimension() == 3 || !grid_f || grid_f->VectorDim() < 3)
+   {
+      dbg("nothing to do");
+      return;
+   }
 
    // not all vector elements can be embedded in 3D, so conversion to L2 elements
    // is performed already here
@@ -288,6 +301,7 @@ void DataState::Extrude2D3VMeshAndSolution()
 
 void DataState::SetMeshSolution()
 {
+   dbg("🔥checkerboard solution");
    if (1) // checkerboard solution
    {
       FiniteElementCollection *cfec;
@@ -320,7 +334,7 @@ void DataState::SetMeshSolution()
          }
          cout << "Number of colors: " << grid_f->Max() + 1 << endl;
       }
-      grid_f->GetNodalValues(sol);
+      grid_f->GetNodalValues(sol1);
       if (save_coloring)
       {
          const char col_fname[] = "GLVis_coloring.gf";
@@ -332,15 +346,15 @@ void DataState::SetMeshSolution()
    }
    else // zero solution
    {
-      sol.SetSize (mesh -> GetNV());
-      sol = 0.0;
+      sol1.SetSize (mesh -> GetNV());
+      sol1 = 0.0;
    }
    type = FieldType::MESH;
 }
 
 void DataState::SetGridFunctionSolution(int gf_component)
 {
-   dbg("sol:{}", sol.Size());
+   dbg();
    if (!grid_f)
    {
       type = (mesh)?(FieldType::MESH):(FieldType::UNKNOWN);
@@ -370,8 +384,8 @@ void DataState::SetGridFunctionSolution(int gf_component)
 
    if (grid_f->VectorDim() == 1)
    {
-      grid_f->GetNodalValues(sol);
-      dbg("GetNodalValues => sol:{}", sol.Size());
+      grid_f->GetNodalValues(sol1);
+      dbg("grid_f->GetNodalValues => sol1:{}", sol1.Size());
       type = FieldType::SCALAR;
    }
    else
@@ -554,6 +568,7 @@ void DataState::SwitchQuadSolution(QuadSolution quad_type,
 std::unique_ptr<GridFunction>
 DataState::ProjectVectorFEGridFunction(std::unique_ptr<GridFunction> gf)
 {
+   dbg("moved, moved!!🔥🔥");
    if ((gf->VectorDim() == 3) && (gf->FESpace()->GetVDim() == 1))
    {
       int p = gf->FESpace()->GetOrder(0);
@@ -577,40 +592,48 @@ DataState::ProjectVectorFEGridFunction(std::unique_ptr<GridFunction> gf)
 bool DataState::SetNewMeshAndSolution(DataState new_state,
                                       VisualizationScene* vs)
 {
+   dbg("\x1b[33mgrid_f:{} new_state.grid_f:{}", grid_f->Size(),
+       new_state.grid_f->Size());
    if (new_state.mesh->SpaceDimension() == mesh->SpaceDimension() &&
-       new_state.grid_f->VectorDim() == grid_f->VectorDim())
+       new_state.grid_f->VectorDim() == grid_f->VectorDim() &&
+       // 🔥🔥🔥🔥 sol mismatch when flat !!
+       new_state.grid_f->Size() == grid_f->Size())
    {
+      dbg("ResetMeshAndSolution");
       ResetMeshAndSolution(new_state, vs);
 
+      dbg("move: grid_f, mesh, quad_f, mesh_quad");
       internal.grid_f = std::move(new_state.internal.grid_f);
       internal.mesh = std::move(new_state.internal.mesh);
       internal.quad_f = std::move(new_state.internal.quad_f);
       internal.mesh_quad = std::move(new_state.internal.mesh_quad);
 
+      dbg("true");
       return true;
    }
    else
    {
+      dbg("false");
       return false;
    }
 }
 
 void DataState::ResetMeshAndSolution(DataState &ss, VisualizationScene* vs)
 {
+   dbg();
    if (ss.mesh->SpaceDimension() == 2)
    {
       if (ss.grid_f->VectorDim() == 1)
       {
-         VisualizationSceneSolution *vss =
-            dynamic_cast<VisualizationSceneSolution *>(vs);
-         ss.grid_f->GetNodalValues(ss.sol);
-         vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &ss.sol,
+         auto *vss = dynamic_cast<VisualizationSceneSolution *>(vs);
+         ss.grid_f->GetNodalValues(ss.sol1);
+         dbg("[2D] grid_f->VectorDim() == 1, ss.sol1:{}", ss.sol1.Size());
+         vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &ss.sol1,
                                  ss.grid_f.get());
       }
       else
       {
-         VisualizationSceneVector *vsv =
-            dynamic_cast<VisualizationSceneVector *>(vs);
+         auto *vsv = dynamic_cast<VisualizationSceneVector *>(vs);
          vsv->NewMeshAndSolution(*ss.grid_f, ss.mesh_quad.get());
       }
    }
@@ -618,18 +641,17 @@ void DataState::ResetMeshAndSolution(DataState &ss, VisualizationScene* vs)
    {
       if (ss.grid_f->VectorDim() == 1)
       {
-         VisualizationSceneSolution3d *vss =
-            dynamic_cast<VisualizationSceneSolution3d *>(vs);
-         ss.grid_f->GetNodalValues(ss.sol);
-         vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &ss.sol,
+         dbg("[3D] grid_f->VectorDim() == 1");
+         auto *vss = dynamic_cast<VisualizationSceneSolution3d *>(vs);
+         ss.grid_f->GetNodalValues(ss.sol1);
+         vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &ss.sol1,
                                  ss.grid_f.get());
       }
       else
       {
          ss.ProjectVectorFEGridFunction();
 
-         VisualizationSceneVector3d *vss =
-            dynamic_cast<VisualizationSceneVector3d *>(vs);
+         auto *vss = dynamic_cast<VisualizationSceneVector3d *>(vs);
          vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), ss.grid_f.get());
       }
    }

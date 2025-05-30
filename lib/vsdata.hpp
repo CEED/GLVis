@@ -319,6 +319,7 @@ public:
 
    void SetAutoscale(int _autoscale);
    int GetAutoscale() const { return autoscale; }
+   auto GetSol() const { return sol; }
 
    /// Shrink the set of points towards attributes centers of gravity
    void ShrinkPoints(DenseMatrix &pointmat, int i, int fn, int di);

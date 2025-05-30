@@ -13,12 +13,22 @@
 
 #include "file_reader.hpp"
 
+#if defined(__has_include) && __has_include("./nvtx.hpp") && !defined(_WIN32)
+#undef NVTX_COLOR
+#define NVTX_COLOR ::nvtx::kGreen
+#include "./nvtx.hpp"
+#else
+#define dbg(...)
+#endif
+
+
 using namespace std;
 using namespace mfem;
 
 int FileReader::ReadSerial(FileReader::FileType ft, const char *mesh_file,
                            const char *sol_file, int component)
 {
+   dbg();
    // get the mesh from a file
    named_ifgzstream meshin(mesh_file);
    if (!meshin)
@@ -65,7 +75,7 @@ int FileReader::ReadSerial(FileReader::FileType ft, const char *mesh_file,
             // get rid of NetGen's info line
             char buff[128];
             solin->getline(buff,128);
-            data.sol.Load(*solin, data.mesh->GetNV());
+            data.sol1.Load(*solin, data.mesh->GetNV());
             data.type = DataState::FieldType::SCALAR;
          }
          break;
@@ -120,6 +130,7 @@ int FileReader::ReadParallel(int np, FileType ft, const char *mesh_file,
 int FileReader::ReadParMeshAndGridFunction(int np, const char *mesh_prefix,
                                            const char *sol_prefix, int component)
 {
+   dbg();
    data.SetMesh(NULL);
 
    // are the solutions bundled together with the mesh files?
@@ -213,6 +224,7 @@ int FileReader::ReadParMeshAndGridFunction(int np, const char *mesh_prefix,
 int FileReader::ReadParMeshAndQuadFunction(int np, const char *mesh_prefix,
                                            const char *sol_prefix, int component)
 {
+   dbg();
    data.SetMesh(NULL);
 
    // are the solutions bundled together with the mesh files?

@@ -69,7 +69,7 @@ private:
    void SetQuadFunctionSolution(int component = -1);
 
 public:
-   Vector sol, solu, solv, solw, normals;
+   Vector sol1, solu, solv, solw, normals;
    const std::unique_ptr<Mesh> &mesh{internal.mesh};
    const std::unique_ptr<Mesh> &mesh_quad{internal.mesh_quad};
    const std::unique_ptr<GridFunction> &grid_f{internal.grid_f};
@@ -163,7 +163,9 @@ public:
    ProjectVectorFEGridFunction(std::unique_ptr<GridFunction> gf);
 
    void ProjectVectorFEGridFunction()
-   { internal.grid_f = ProjectVectorFEGridFunction(std::move(internal.grid_f)); }
+   {
+      internal.grid_f = ProjectVectorFEGridFunction(std::move(internal.grid_f));
+   }
 
    /// Sets a new mesh and solution from another DataState object, and
    /// updates the given VisualizationScene pointer with the new data.

@@ -435,7 +435,8 @@ VisualizationSceneSolution::VisualizationSceneSolution()
 VisualizationSceneSolution::VisualizationSceneSolution(
    Mesh &m, Vector &s, Mesh *mc, Vector *normals)
 {
-   dbg("sol:{} mc:{} normals:{}", s.Size(), fmt::ptr(mc), fmt::ptr(normals));
+   dbg("\x1b[33m[NEW] sol:{} mc:{} normals:{}", s.Size(), fmt::ptr(mc),
+       fmt::ptr(normals));
    mesh = &m;
    mesh_coarse = mc;
    sol = &s;
@@ -446,6 +447,7 @@ VisualizationSceneSolution::VisualizationSceneSolution(
 
 void VisualizationSceneSolution::Init()
 {
+   dbg();
    rsol  = NULL;
    vssol = this;
 
@@ -598,6 +600,8 @@ void VisualizationSceneSolution::ToggleDrawElems()
 void VisualizationSceneSolution::NewMeshAndSolution(
    Mesh *new_m, Mesh *new_mc, Vector *new_sol, GridFunction *new_u)
 {
+   dbg("\x1b[31m[NEW] new_sol:{} (@{}) new_mc:{}",
+       new_sol->Size(), fmt::ptr(new_sol), fmt::ptr(new_mc));
    Mesh *old_m = mesh;
    mesh = new_m;
    mesh_coarse = new_mc;
@@ -619,13 +623,22 @@ void VisualizationSceneSolution::NewMeshAndSolution(
    have_sol_range = false;
    DoAutoscale(false);
 
+   dbg("[NEW] sol:{} (@{}) ", sol->Size(), fmt::ptr(sol));
+
    Prepare();
+   dbg("[NEW] sol:{} (@{}) ", sol->Size(), fmt::ptr(sol));
    PrepareLines();
+   dbg("[NEW] sol:{} (@{}) ", sol->Size(), fmt::ptr(sol));
    PrepareLevelCurves();
+   dbg("[NEW] sol:{} (@{}) ", sol->Size(), fmt::ptr(sol));
    PrepareBoundary();
+   dbg("[NEW] sol:{} (@{}) ", sol->Size(), fmt::ptr(sol));
    PrepareCP();
+   dbg("[NEW] sol:{} (@{}) ", sol->Size(), fmt::ptr(sol));
    PrepareNumbering();
+   dbg("[NEW] sol:{} (@{}) ", sol->Size(), fmt::ptr(sol));
    PrepareOrderingCurve();
+   dbg("[NEW] sol:{} (@{}) ", sol->Size(), fmt::ptr(sol));
 }
 
 
@@ -848,6 +861,9 @@ void VisualizationSceneSolution::SetShading(Shading s, bool print)
 
    if (rsol)
    {
+      dbg("rsol: {} {}", fmt::ptr(rsol), rsol->Size());
+      dbg(" sol: {} {}", fmt::ptr(sol), sol->Size());
+
       if (s >= Shading::Max)
       {
          return;
@@ -1064,6 +1080,7 @@ void VisualizationSceneSolution::SetNewScalingFromBox()
 void VisualizationSceneSolution::FindNewBox(double rx[], double ry[],
                                             double rval[])
 {
+   dbg();
    int i, j;
 
    if (shading != Shading::Noncomforming)
@@ -1071,8 +1088,8 @@ void VisualizationSceneSolution::FindNewBox(double rx[], double ry[],
       int nv = mesh -> GetNV();
 
       double *coord = mesh->GetVertex(0);
-
-      rval[0] = rval[1] = (*sol)(0);
+      dbg("\x1b[31msol: {} size: {}", fmt::ptr(sol), sol->Size());
+      rval[0] = rval[1] = (*sol)(0); // ❌❌❌
       for (i = 1; i < sol->Size(); i++)
       {
          if ((*sol)(i) < rval[0]) { rval[0] = (*sol)(i); }
@@ -1131,6 +1148,7 @@ void VisualizationSceneSolution::FindNewBox(double rx[], double ry[],
 
 void VisualizationSceneSolution::FindNewBox(bool prepare)
 {
+   dbg("sol:{} size: {}", fmt::ptr(sol), sol->Size());
    FindNewBox(bb.x, bb.y, bb.z);
 
    minv = bb.z[0];
@@ -1295,6 +1313,7 @@ void VisualizationSceneSolution::PrepareWithNormals()
 
 void VisualizationSceneSolution::PrepareFlat()
 {
+   dbg();
    disp_buf.clear();
    const int ne = mesh -> GetNE();
    DenseMatrix pointmat;
@@ -1443,6 +1462,7 @@ void VisualizationSceneSolution::PrepareFlat2()
 
 void VisualizationSceneSolution::Prepare()
 {
+   dbg();
    const int dim = mesh->Dimension();
 
    palette.SetUseLogscale(0);
@@ -1565,6 +1585,7 @@ void VisualizationSceneSolution::Prepare()
 
 void VisualizationSceneSolution::PrepareLevelCurves()
 {
+   dbg();
    if (shading == Shading::Noncomforming)
    {
       PrepareLevelCurves2();
@@ -1703,6 +1724,7 @@ void VisualizationSceneSolution::PrepareLevelCurves2()
 
 void VisualizationSceneSolution::PrepareLines()
 {
+   dbg();
    if (shading == Shading::Noncomforming &&
        mesh->Dimension() > 1) // PrepareLines3 does not make sense for 1d meshes.
    {
@@ -2015,32 +2037,39 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
    Array<int> edges_ori;
 
    const int ne = mesh->GetNE();
-   for (int k = 0; k < ne; k++)
+   if (shading == Shading::Flat || shading == Shading::Smooth)
    {
-      mesh->GetElementEdges(k, edges, edges_ori);
-
-      double ds = GetElementLengthScale(k);
-      double xs = 0.05 * ds;
-
-      for (int i = 0; i < edges.Size(); i++)
+      for (int k = 0; k < ne; k++)
       {
-         mesh->GetEdgeVertices(edges[i], vertices);
+         mesh->GetElementEdges(k, edges, edges_ori);
 
-         p.SetSize(mesh->Dimension(), vertices.Size());
-         p.SetCol(0, mesh->GetVertex(vertices[0]));
-         p.SetCol(1, mesh->GetVertex(vertices[1]));
+         double ds = GetElementLengthScale(k);
+         double xs = 0.05 * ds;
 
-         ShrinkPoints(p, k, 0, 0);
+         for (int i = 0; i < edges.Size(); i++)
+         {
+            mesh->GetEdgeVertices(edges[i], vertices);
 
-         const double m[2] = {0.5 * (p(0,0) + p(0,1)), 0.5 * (p(1,0) + p(1,1))};
-         // TODO: figure out something better...
-         double u = LogVal(0.5 * ((*sol)(vertices[0]) + (*sol)(vertices[1])));
+            p.SetSize(mesh->Dimension(), vertices.Size());
+            p.SetCol(0, mesh->GetVertex(vertices[0]));
+            p.SetCol(1, mesh->GetVertex(vertices[1]));
 
-         double xx[3] = {m[0], m[1], u};
-         DrawNumberedMarker(f_nums_buf, xx, xs, edges[i]);
+            ShrinkPoints(p, k, 0, 0);
+
+            const double m[2] = {0.5 * (p(0,0) + p(0,1)), 0.5 * (p(1,0) + p(1,1))};
+            // TODO: figure out something better...
+            double u = LogVal(0.5 * ((*sol)(vertices[0]) + (*sol)(vertices[1])));
+
+            double xx[3] = {m[0], m[1], u};
+            DrawNumberedMarker(f_nums_buf, xx, xs, edges[i]);
+         }
       }
    }
-
+   else if (shading == Shading::Noncomforming)
+   {
+      // look @ PrepareLevelCurves2 🔥🔥🔥🔥
+   }
+   else { MFEM_ABORT("Shading not supported"); }
    updated_bufs.emplace_back(&f_nums_buf);
 }
 
@@ -2058,6 +2087,7 @@ void VisualizationSceneSolution::PrepareDofNumbering()
 
    if (shading == Shading::Noncomforming)
    {
+      dbg("Noncomforming");
       Vector vals;
       for (int e = 0; e < ne; e++)
       {
@@ -2075,6 +2105,7 @@ void VisualizationSceneSolution::PrepareDofNumbering()
    }
    else if (shading == Shading::Flat || shading == Shading::Smooth)
    {
+      dbg("Flat || Smooth");
       FiniteElementSpace flat_fes(mesh, rsol_fec->Clone(1));
       MFEM_VERIFY(sol->Size() == flat_fes.GetNDofs(),
                   "Flat space does not match the solution size");
@@ -2121,6 +2152,7 @@ void VisualizationSceneSolution::PrepareDofNumbering()
 
 void VisualizationSceneSolution::PrepareOrderingCurve()
 {
+   dbg();
    bool color = draworder < 3;
    order_buf.clear();
    order_noarrow_buf.clear();
@@ -2209,6 +2241,7 @@ void VisualizationSceneSolution::PrepareOrderingCurve1(gl3::GlDrawable& buf,
 
 void VisualizationSceneSolution::PrepareNumbering(bool invalidate)
 {
+   dbg();
    if (invalidate)
    {
       // invalidate all numberings
@@ -2369,6 +2402,7 @@ void VisualizationSceneSolution::UpdateValueRange(bool prepare)
 
 void VisualizationSceneSolution::PrepareBoundary()
 {
+   dbg();
    const int dim = mesh->Dimension();
    if (dim == 1) // Unimplemented.
    {
@@ -2455,6 +2489,7 @@ void VisualizationSceneSolution::PrepareBoundary()
 
 void VisualizationSceneSolution::PrepareCP()
 {
+   dbg();
    Vector values;
    DenseMatrix pointmat;
    Array<int> ind;

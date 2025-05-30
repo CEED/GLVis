@@ -27,6 +27,8 @@ class StreamReader
 public:
    StreamReader(DataState &data_) : data(data_) { }
 
+   const DataState& Data() const { return data; }
+
    /// Read the content of an input stream (e.g. from socket/file)
    int ReadStream(std::istream &is, const std::string &data_type);
 

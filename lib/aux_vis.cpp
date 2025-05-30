@@ -461,7 +461,6 @@ void InitIdleFuncs()
    }
 }
 
-#ifndef __EMSCRIPTEN__
 bool CommunicationIdleFunc()
 {
    int status = glvis_command->Execute();
@@ -477,12 +476,11 @@ bool CommunicationIdleFunc()
    }
    return false;
 }
-#endif
 
 bool MainIdleFunc()
 {
    bool sleep = true;
-#ifndef __EMSCRIPTEN__
+
    if (glvis_command && visualize == 1
        && !(IdleFuncs.Size() > 0 && use_idle))
    {
@@ -505,18 +503,7 @@ bool MainIdleFunc()
       sleep = false;
    }
    use_idle = !use_idle;
-#else
-   if (IdleFuncs.Size() > 0)
-   {
-      LastIdleFunc = (LastIdleFunc + 1) % IdleFuncs.Size();
-      if (IdleFuncs[LastIdleFunc])
-      {
-         (*IdleFuncs[LastIdleFunc])();
-      }
-      // Continue executing idle functions
-      sleep = false;
-   }
-#endif
+
    return sleep;
    LastIdleFunc = (LastIdleFunc + 1) % IdleFuncs.Size();
    if (IdleFuncs[LastIdleFunc])
@@ -1287,9 +1274,7 @@ void ThreadsPauseFunc(GLenum state)
 {
    if (state & KMOD_CTRL)
    {
-#ifndef __EMSCRIPTEN__
       glvis_command->ToggleAutopause();
-#endif
    }
    else
    {

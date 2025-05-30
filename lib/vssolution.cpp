@@ -15,6 +15,7 @@
 #include <limits>
 #include <cmath>
 #include <vector>
+#include <map>
 
 #include "vssolution.hpp"
 #include "palettes.hpp"
@@ -2045,28 +2046,26 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
 
 void VisualizationSceneSolution::PrepareDofNumbering()
 {
+   DenseMatrix tr;
+   Array<int> dofs;
+
    d_nums_buf.clear();
-   const int ne = mesh->GetNE(), sdim = mesh->SpaceDimension();
+
+   const int ne = mesh->GetNE();
+   auto *rsol_fes = rsol->FESpace();
+   const auto *rsol_fec = rsol_fes->FEColl();
+   FiniteElementSpace rdof_fes(mesh, rsol_fec);
 
    if (shading == Shading::Noncomforming)
    {
-      dbg("Shading::Noncomforming");
-      const auto *fes = rsol->FESpace();
-      FiniteElementSpace dof_fes(mesh, fes->FEColl(), sdim);
-
       Vector vals;
-      DenseMatrix tr;
-      Array<int> dofs;
-
       for (int e = 0; e < ne; e++)
       {
          if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
          const auto dx = 0.05 * GetElementLengthScale(e);
-         const IntegrationRule &ir = fes->GetFE(e)->GetNodes();
+         const IntegrationRule &ir = rsol_fes->GetFE(e)->GetNodes();
          GetRefinedValues(e, ir, vals, tr);
-         dof_fes.GetElementDofs(e, dofs);
-         assert(dofs.Size() == ir.GetNPoints());
-
+         rdof_fes.GetElementDofs(e, dofs);
          for (int q = 0; q < ir.GetNPoints(); q++)
          {
             const real_t x[3] = {tr(0,q), tr(1,q), vals[q]};
@@ -2074,67 +2073,47 @@ void VisualizationSceneSolution::PrepareDofNumbering()
          }
       }
    }
-   else if (shading == Shading::Flat)
+   else if (shading == Shading::Flat || shading == Shading::Smooth)
    {
-      dbg("Shading::Flat");
-      const auto *rfes = rsol->FESpace();
-      FiniteElementSpace dof_rfes(mesh, rfes->FEColl(), sdim);
-      const int ho_ndofs = rfes->GetNDofs();
-      dbg("ho_ndofs:{}", ho_ndofs);
+      FiniteElementSpace flat_fes(mesh, rsol_fec->Clone(1));
+      MFEM_VERIFY(sol->Size() == flat_fes.GetNDofs(),
+                  "Flat space does not match the solution size");
 
-      const FiniteElementCollection *fec = rfes->FEColl()->Clone(1);
-      FiniteElementSpace dof_fes(mesh, fec, sdim);
+      const LORDiscretization lor_discretization(*rsol_fes);
+      auto &lor_fes = lor_discretization.GetFESpace();
+      const auto &lor_perm = lor_discretization.GetDofPermutation();
+      MFEM_VERIFY(rsol_fes->GetNDofs() == lor_fes.GetNDofs(),
+                  "LOR space does not match the solution size");
 
-      Vector vals;
-      DenseMatrix tr;
-      Array<int> dofs;
+      InterpolationGridTransfer gt(flat_fes, lor_fes);
+      GridFunction flat_sol(&flat_fes, sol->GetData()), lor_sol(&lor_fes);
+      gt.ForwardOperator().Mult(flat_sol, lor_sol);
 
-      {
-         const LORDiscretization lor_discretization(*rsol->FESpace());
-         FiniteElementSpace &lor_fes = lor_discretization.GetFESpace();
-         // const Array<int> &dof_perm = lor_discretization.GetDofPermutation();
-         const int lor_ndofs = lor_fes.GetNDofs();
-         dbg("lor_ndofs:{}", lor_ndofs);
-         assert(ho_ndofs == lor_ndofs);
-
-         GridFunction psol(&lor_fes);
-         FiniteElementSpace flat_fes(mesh, rfes->FEColl(), sdim);
-         // GridFunction flat_sol()
-         // psol.ProjectGridFunction(*sol);
-
-         /*{
-            dbg("dof_perm:{}", dof_perm.Size());
-            for (int d = 0; d < dof_perm.Size(); ++d)
-            {
-               dbg("dof_perm[{}]: {}", d, dof_perm[d]);
-            }
-         }*/
-      }
-
+      // store 'dx' for the sol mesh elements
+      std::map<int, double> dx;
       for (int e = 0; e < ne; e++)
       {
          mesh->GetPointMatrix(e, tr);
-         dof_fes.GetElementDofs(e, dofs);
-
          ShrinkPoints(tr, e, 0, 0);
+         const auto dx_e = 0.05 * GetElementLengthScale(e);
+         rdof_fes.GetElementDofs(e, dofs);
+         for (int d = 0; d < dofs.Size(); d++) { dx[dofs[d]] = dx_e; }
+      }
 
-         const auto dx = 0.05 * GetElementLengthScale(e);
-
-         const IntegrationRule &ir = dof_fes.GetFE(e)->GetNodes();
-         assert(dofs.Size() == ir.GetNPoints());
-
+      // use the LOR mesh, fes & dofs
+      auto *lor_mesh = lor_fes.GetMesh();
+      for (int e = 0; e < lor_mesh->GetNE(); e++)
+      {
+         lor_fes.GetElementDofs(e, dofs);
+         lor_mesh->GetPointMatrix(e, tr);
+         const auto &ir = lor_fes.GetFE(e)->GetNodes();
          for (int q = 0; q < ir.GetNPoints(); q++)
          {
-            const int dof = dofs[q];
-            double u = LogVal((*sol)(dof));
-            const real_t x[3] = {tr(0,q), tr(1,q), u};
-            DrawNumberedMarker(d_nums_buf, x, dx, dof);
+            const int dof = dofs[lor_perm[q]];
+            const real_t x[3] = {tr(0,q), tr(1,q), LogVal(lor_sol(dof))};
+            DrawNumberedMarker(d_nums_buf, x, dx.at(dof), dof);
          }
       }
-   }
-   else if (shading == Shading::Smooth)
-   {
-      dbg("Shading::Smooth");
    }
    else { MFEM_ABORT("Shading not supported"); }
    updated_bufs.emplace_back(&d_nums_buf);

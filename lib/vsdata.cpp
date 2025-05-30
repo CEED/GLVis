@@ -1364,9 +1364,9 @@ VisualizationSceneScalarData::VisualizationSceneScalarData(
 {
    mesh = &m;
    mesh_coarse = mc;
-   sol  = &s;
+   sol_  = &s;
 
-   dbg("[NEW] mesh:{} sol:{}", mesh->GetNE(), sol->Size());
+   dbg("[NEW] mesh:{} sol:{}", mesh->GetNE(), sol_->Size());
    Init();
 }
 

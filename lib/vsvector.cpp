@@ -264,7 +264,7 @@ VisualizationSceneVector::VisualizationSceneVector(Mesh & m,
    solx = &sx;
    soly = &sy;
 
-   sol  = new Vector(mesh -> GetNV());
+   sol_  = new Vector(mesh -> GetNV());
 
    VecGridF = NULL;
 
@@ -290,7 +290,7 @@ VisualizationSceneVector::VisualizationSceneVector(GridFunction &vgf)
    vgf.GetNodalValues (*solx, 1);
    vgf.GetNodalValues (*soly, 2);
 
-   sol = new Vector(mesh -> GetNV());
+   sol_ = new Vector(mesh -> GetNV());
 
    //  VisualizationSceneSolution::Init()  sets rsol = NULL !
    {
@@ -385,7 +385,7 @@ void VisualizationSceneVector::CycleVec2Scalar(int print)
 
    for (i = 0; i < mesh->GetNV(); i++)
    {
-      (*sol)(i) = Vec2Scalar((*solx)(i), (*soly)(i));
+      (*sol_)(i) = Vec2Scalar((*solx)(i), (*soly)(i));
    }
 
    // update scalar stuff
@@ -410,7 +410,7 @@ void VisualizationSceneVector::CycleVec2Scalar(int print)
 
 void VisualizationSceneVector::NewMeshAndSolution(GridFunction &vgf, Mesh *mc)
 {
-   delete sol;
+   delete sol_;
 
    if (VecGridF)
    {
@@ -457,13 +457,13 @@ void VisualizationSceneVector::NewMeshAndSolution(GridFunction &vgf, Mesh *mc)
       vc0 += vgf;
    }
 
-   sol = new Vector(mesh->GetNV());
+   sol_ = new Vector(mesh->GetNV());
    for (int i = 0; i < mesh->GetNV(); i++)
    {
-      (*sol)(i) = Vec2Scalar((*solx)(i), (*soly)(i));
+      (*sol_)(i) = Vec2Scalar((*solx)(i), (*soly)(i));
    }
 
-   VisualizationSceneSolution::NewMeshAndSolution(mesh, mesh_coarse, sol, &vgf);
+   VisualizationSceneSolution::NewMeshAndSolution(mesh, mesh_coarse, sol_, &vgf);
 
    if (autoscale)
    {
@@ -492,7 +492,7 @@ void VisualizationSceneVector::Init()
 
    for (int i = 0; i < mesh->GetNV(); i++)
    {
-      (*sol)(i) = Vec2Scalar((*solx)(i), (*soly)(i));
+      (*sol_)(i) = Vec2Scalar((*solx)(i), (*soly)(i));
    }
 
    VisualizationSceneSolution::Init();
@@ -523,7 +523,7 @@ void VisualizationSceneVector::Init()
 
 VisualizationSceneVector::~VisualizationSceneVector()
 {
-   delete sol;
+   delete sol_;
 
    if (VecGridF)
    {
@@ -914,7 +914,7 @@ void VisualizationSceneVector::PrepareVectorField()
          for (i = 0; i < mesh->GetNV(); i++)
          {
             double *v = mesh->GetVertex(i);
-            DrawVector(v[0], v[1], (*solx)(i), (*soly)(i), (*sol)(i));
+            DrawVector(v[0], v[1], (*solx)(i), (*soly)(i), (*sol_)(i));
          }
 
          if (shading == Shading::Noncomforming && RefineFactor > 1)

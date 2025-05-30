@@ -72,7 +72,7 @@ public:
 
 protected:
    Mesh   *mesh{}, *mesh_coarse{};
-   Vector *sol{};
+   Vector *sol_{};
 
    double minv, maxv;
 
@@ -319,7 +319,7 @@ public:
 
    void SetAutoscale(int _autoscale);
    int GetAutoscale() const { return autoscale; }
-   auto GetSol() const { return sol; }
+   auto GetSol() const { return sol_; }
 
    /// Shrink the set of points towards attributes centers of gravity
    void ShrinkPoints(DenseMatrix &pointmat, int i, int fn, int di);

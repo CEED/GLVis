@@ -595,9 +595,9 @@ bool DataState::SetNewMeshAndSolution(DataState new_state,
    dbg("\x1b[33mgrid_f:{} new_state.grid_f:{}", grid_f->Size(),
        new_state.grid_f->Size());
    if (new_state.mesh->SpaceDimension() == mesh->SpaceDimension() &&
-       new_state.grid_f->VectorDim() == grid_f->VectorDim() &&
-       // 🔥🔥🔥🔥 sol mismatch when flat !!
-       new_state.grid_f->Size() == grid_f->Size())
+       new_state.grid_f->VectorDim() == grid_f->VectorDim())
+      // 🔥🔥🔥🔥 sol mismatch when flat !!
+      //  new_state.grid_f->Size() == grid_f->Size())
    {
       dbg("ResetMeshAndSolution");
       ResetMeshAndSolution(new_state, vs);
@@ -607,13 +607,13 @@ bool DataState::SetNewMeshAndSolution(DataState new_state,
       internal.mesh = std::move(new_state.internal.mesh);
       internal.quad_f = std::move(new_state.internal.quad_f);
       internal.mesh_quad = std::move(new_state.internal.mesh_quad);
-
-      dbg("true");
+      // sol1 = std::move(new_state.sol1); // 🔥🔥🔥
+      dbg("\x1b[32mtrue");
       return true;
    }
    else
    {
-      dbg("false");
+      dbg("\x1b[31mfalse");
       return false;
    }
 }

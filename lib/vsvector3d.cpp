@@ -284,10 +284,10 @@ void VisualizationSceneVector3d::SetScalarFunction()
    switch (scal_func)
    {
       case 0: // magnitude
-         for (int i = 0; i < sol->Size(); i++)
-            (*sol)(i) = sqrt((*solx)(i) * (*solx)(i) +
-                             (*soly)(i) * (*soly)(i) +
-                             (*solz)(i) * (*solz)(i) );
+         for (int i = 0; i < sol_->Size(); i++)
+            (*sol_)(i) = sqrt((*solx)(i) * (*solx)(i) +
+                              (*soly)(i) * (*soly)(i) +
+                              (*solz)(i) * (*solz)(i) );
          if (GridF)
          {
             Array<int> dofs(3);
@@ -305,7 +305,7 @@ void VisualizationSceneVector3d::SetScalarFunction()
          }
          break;
       case 1: // x-component
-         *sol = *solx;
+         *sol_ = *solx;
          if (GridF)
             for (int i = 0; i < GridF->Size(); i++)
             {
@@ -313,7 +313,7 @@ void VisualizationSceneVector3d::SetScalarFunction()
             }
          break;
       case 2: // y-component
-         *sol = *soly;
+         *sol_ = *soly;
          if (GridF)
             for (int i = 0; i < GridF->Size(); i++)
             {
@@ -321,7 +321,7 @@ void VisualizationSceneVector3d::SetScalarFunction()
             }
          break;
       case 3: // z-component
-         *sol = *solz;
+         *sol_ = *solz;
          if (GridF)
             for (int i = 0; i < GridF->Size(); i++)
             {
@@ -349,7 +349,7 @@ VisualizationSceneVector3d::VisualizationSceneVector3d(Mesh &m, Vector &sx,
    soly = &sy;
    solz = &sz;
 
-   sol = new Vector(mesh->GetNV());
+   sol_ = new Vector(mesh->GetNV());
 
    sfes = NULL;
    VecGridF = NULL;
@@ -383,7 +383,7 @@ VisualizationSceneVector3d::VisualizationSceneVector3d(GridFunction &vgf,
    vgf.GetNodalValues(*soly, 2);
    vgf.GetNodalValues(*solz, 3);
 
-   sol = new Vector(mesh->GetNV());
+   sol_ = new Vector(mesh->GetNV());
 
    Init();
 }
@@ -459,7 +459,7 @@ int VisualizationSceneVector3d::GetFunctionAutoRefineFactor()
 
 VisualizationSceneVector3d::~VisualizationSceneVector3d()
 {
-   delete sol;
+   delete sol_;
 
    if (VecGridF)
    {
@@ -474,7 +474,7 @@ VisualizationSceneVector3d::~VisualizationSceneVector3d()
 void VisualizationSceneVector3d::NewMeshAndSolution(
    Mesh *new_m, Mesh *new_mc, GridFunction *new_v)
 {
-   delete sol;
+   delete sol_;
    if (VecGridF)
    {
       delete solz;
@@ -523,7 +523,7 @@ void VisualizationSceneVector3d::NewMeshAndSolution(
    VecGridF->GetNodalValues(*soly, 2);
    VecGridF->GetNodalValues(*solz, 3);
 
-   sol = new Vector(mesh->GetNV());
+   sol_ = new Vector(mesh->GetNV());
 
    SetScalarFunction();
 
@@ -579,7 +579,7 @@ void VisualizationSceneVector3d::PrepareFlat()
          p[j][0] = pointmat(0, j);
          p[j][1] = pointmat(1, j);
          p[j][2] = pointmat(2, j);
-         c[j] = (*sol)(vertices[j]);
+         c[j] = (*sol_)(vertices[j]);
       }
       if (j == 3)
       {
@@ -936,7 +936,7 @@ void VisualizationSceneVector3d::Prepare()
          }
          for (j = 0; j < pointmat.Size(); j++)
          {
-            MySetColor(draw, (*sol)(vertices[j]), minv, maxv);
+            MySetColor(draw, (*sol_)(vertices[j]), minv, maxv);
             draw.glNormal3d(nx(vertices[j]), ny(vertices[j]), nz(vertices[j]));
             draw.glVertex3dv(&pointmat(0, j));
          }
@@ -1026,7 +1026,7 @@ void VisualizationSceneVector3d::PrepareLines()
                {
                   point[j][k] = pointmat(k,j);
                }
-               point[j][3] = (*sol)(vertices[j]);
+               point[j][3] = (*sol_)(vertices[j]);
             }
             DrawPolygonLevelLines(line, point[0], pointmat.Size(), level, false);
             break;
@@ -1399,11 +1399,11 @@ void VisualizationSceneVector3d::PrepareVectorField()
 
       case 1:
          for (i = 0; i < nv; i++)
-            if (drawmesh != 2 || ArrowDrawOrNot((*sol)(i), nl, level))
+            if (drawmesh != 2 || ArrowDrawOrNot((*sol_)(i), nl, level))
             {
                vertex = mesh->GetVertex(i);
                DrawVector(vector_buf, drawvector, vertex[0], vertex[1], vertex[2],
-                          (*solx)(i), (*soly)(i), (*solz)(i), (*sol)(i));
+                          (*solx)(i), (*soly)(i), (*solz)(i), (*sol_)(i));
             }
          break;
 
@@ -1412,11 +1412,11 @@ void VisualizationSceneVector3d::PrepareVectorField()
          arrow_type = 1;
          arrow_scaling_type = 1;
          for (i = 0; i < nv; i++)
-            if (drawmesh != 2 || ArrowDrawOrNot((*sol)(i), nl, level))
+            if (drawmesh != 2 || ArrowDrawOrNot((*sol_)(i), nl, level))
             {
                vertex = mesh->GetVertex(i);
                DrawVector(vector_buf, drawvector, vertex[0], vertex[1], vertex[2],
-                          (*solx)(i), (*soly)(i), (*solz)(i), (*sol)(i));
+                          (*solx)(i), (*soly)(i), (*solz)(i), (*sol_)(i));
             }
       }
       break;
@@ -1427,11 +1427,11 @@ void VisualizationSceneVector3d::PrepareVectorField()
          arrow_scaling_type = 1;
 
          for (i = 0; i < nv; i++)
-            if (drawmesh != 2 || ArrowDrawOrNot((*sol)(i), nl, level))
+            if (drawmesh != 2 || ArrowDrawOrNot((*sol_)(i), nl, level))
             {
                vertex = mesh->GetVertex(i);
                DrawVector(vector_buf, drawvector, vertex[0], vertex[1], vertex[2],
-                          (*solx)(i), (*soly)(i), (*solz)(i), (*sol)(i));
+                          (*solx)(i), (*soly)(i), (*solz)(i), (*sol_)(i));
             }
       }
       break;
@@ -1439,7 +1439,7 @@ void VisualizationSceneVector3d::PrepareVectorField()
       case 4:
       {
          Array<int> *l = new Array<int>[nl+1];
-         ArrowsDrawOrNot(l, nv, *sol, nl, level);
+         ArrowsDrawOrNot(l, nv, *sol_, nl, level);
 
          int j,k;
 
@@ -1451,7 +1451,7 @@ void VisualizationSceneVector3d::PrepareVectorField()
                vertex = mesh->GetVertex( l[i][j] );
                DrawVector(vector_buf, drawvector, vertex[0], vertex[1], vertex[2],
                           (*solx)(l[i][j]), (*soly)(l[i][j]), (*solz)(l[i][j]),
-                          (*sol)(l[i][j]));
+                          (*sol_)(l[i][j]));
             }
          }
 
@@ -1483,7 +1483,7 @@ void VisualizationSceneVector3d::PrepareVectorField()
                if (vert_marker[i]) { continue; }
                vertex = mesh->GetVertex(i);
                DrawVector(vector_buf, drawvector, vertex[0], vertex[1], vertex[2],
-                          (*solx)(i), (*soly)(i), (*solz)(i), (*sol)(i));
+                          (*solx)(i), (*soly)(i), (*solz)(i), (*sol_)(i));
                vert_marker[i] = true;
             }
          }
@@ -1535,7 +1535,7 @@ void VisualizationSceneVector3d::PrepareCuttingPlane()
                point[n][k] = coord[k];
             }
 
-            point[n][3] = (*sol)(nodes[j]);
+            point[n][3] = (*sol_)(nodes[j]);
             val[n][0] = (*solx)(nodes[j]);
             val[n][1] = (*soly)(nodes[j]);
             val[n][2] = (*solz)(nodes[j]);
@@ -1561,9 +1561,9 @@ void VisualizationSceneVector3d::PrepareCuttingPlane()
                                 pointmat(k,ind[j][1])) +
                              pointmat(k,ind[j][1]);
 
-            point[n][3] = t * ((*sol)(nodes[ind[j][0]]) -
-                               (*sol)(nodes[ind[j][1]])) +
-                          (*sol)(nodes[ind[j][1]]);
+            point[n][3] = t * ((*sol_)(nodes[ind[j][0]]) -
+                               (*sol_)(nodes[ind[j][1]])) +
+                          (*sol_)(nodes[ind[j][1]]);
             val[n][0] = t * ((*solx)(nodes[ind[j][0]]) -
                              (*solx)(nodes[ind[j][1]])) +
                         (*solx)(nodes[ind[j][1]]);

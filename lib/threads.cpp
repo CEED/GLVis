@@ -877,18 +877,26 @@ ThreadCommands::ThreadCommands()
 }
 
 communication_thread::communication_thread(StreamCollection _is,
-                                           GLVisCommand* cmd)
-   : is(std::move(_is)), glvis_command(cmd)
+                                           GLVisCommand* cmd, bool multithread)
+   : is(std::move(_is)), glvis_command(cmd), is_multithread(multithread)
 {
-   if (is.size() > 0)
+   if (is_multithread && is.size() > 0)
    {
       tid = std::thread(&communication_thread::execute, this);
    }
 }
 
+bool communication_thread::process_one()
+{
+   std::string word;
+   *is[0] >> ws;
+   *is[0] >> word;
+   return execute_one(word);
+}
+
 communication_thread::~communication_thread()
 {
-   if (is.size() > 0)
+   if (is_multithread && is.size() > 0)
    {
       terminate_thread = true;
       tid.join();

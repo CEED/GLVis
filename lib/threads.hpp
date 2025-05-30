@@ -152,6 +152,7 @@ private:
    StreamCollection is;
 
    GLVisCommand* glvis_command;
+   bool is_multithread;
 
    // thread object
    std::thread tid;
@@ -163,7 +164,10 @@ private:
    void execute();
 
 public:
-   communication_thread(StreamCollection _is, GLVisCommand* cmd);
+   communication_thread(StreamCollection _is, GLVisCommand* cmd,
+                        bool mulithread = true);
+
+   bool process_one();
 
    ~communication_thread();
 };

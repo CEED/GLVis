@@ -2048,6 +2048,7 @@ void VisualizationSceneSolution::PrepareVertexNumbering2()
 
 void VisualizationSceneSolution::PrepareEdgeNumbering()
 {
+   dbg();
    // 1D meshes do not have edges.
    if (mesh->Dimension() == 1) { return; }
 
@@ -2061,6 +2062,7 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
    const int ne = mesh->GetNE();
    if (shading == Shading::Flat || shading == Shading::Smooth)
    {
+      dbg("Flat || Smooth");
       for (int k = 0; k < ne; k++)
       {
          mesh->GetElementEdges(k, edges, edges_ori);
@@ -2088,9 +2090,173 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
       }
    }
    else if (shading == Shading::Noncomforming)
+#if 0
    {
-      // look @ PrepareLevelCurves2 🔥🔥🔥🔥
+      dbg("Noncomforming");
+      auto *rfes = rsol->FESpace();
+      auto *rmsh = rfes->GetMesh();
+
+      IsoparametricTransformation EdTr;
+      Array<int> dofs;
+      const int NEdges = rmsh->GetNEdges();
+      dbg("NEdges: {}", NEdges);
+      for (int edge = 0; edge < NEdges; edge++)
+      {
+         dbg("edge: {}", edge);
+         // rfes->GetEdgeDofs(edge, dofs);
+         rmsh->GetEdgeTransformation(edge, &EdTr);
+         const auto &ir = rfes->GetEdgeElement(edge)->GetNodes();
+         const int nq = ir.GetNPoints();
+
+         DenseMatrix &pm = EdTr.GetPointMat();
+         dbg("nq:{} pm_W:{} pm_H:{}", nq, pm.Width(), pm.Height());
+
+         for (int q = 0; q < ir.GetNPoints(); q++)
+         {
+            // const int dof = dofs[lor_perm[q]];
+            const real_t x[3] = {pm(0,q), pm(1,q), 0.0};
+            DrawNumberedMarker(f_nums_buf, x, 0.01, 0);
+         }
+      }
    }
+#elif 0
+   {
+      dbg("Noncomforming");
+      const int times = 5;
+      for (int e = 0; e < ne; e++)
+      {
+         // Create a uniform grid of integration points over the element
+         const int geom = mesh->GetElementBaseGeometry(e);
+         RefinedGeometry* ref = GlobGeometryRefiner.Refine(Geometry::Type(geom), times);
+         const IntegrationRule &ir = ref->RefPts;
+         const int npts = ir.GetNPoints();
+         dbg("Element #{} npts:{}", e, npts);
+
+         // Create a transformation
+         IsoparametricTransformation tr;
+         mesh->GetElementTransformation(e, &tr);
+         Vector v(2);
+
+         for (int i=0; i<npts; ++i)
+         {
+            // Transform the integration point into space
+            const IntegrationPoint& ip = ir.IntPoint(i);
+            dbg("ip.x : {}, ip.y : {}", ip.x, ip.y);
+            tr.Transform(ip, v);
+            dbg("v: x : {}, v.y : {}", v(0), v(1));
+
+            // Now reverse the transformation
+            IntegrationPoint ipRev;
+
+            int res = tr.TransformBack(v, ipRev);
+
+            // Check that the reverse transform was successful
+            if (res == InverseElementTransformation::Inside)
+            {
+               dbg("ipRev.x : {}, ipRev.y : {}", ipRev.x, ipRev.y);
+               double xx[3] = {v(0), v(1), 0.0};
+               DrawNumberedMarker(f_nums_buf, xx, 0.02, i);
+            }
+         }
+      }
+   }
+#elif 1
+   {
+      dbg("Noncomforming");
+      Vector values;
+      DenseMatrix pointmat;
+      Array<int> orientations;
+
+      for (int e = 0; e < ne; e++)
+      {
+         dbg("Element #{}", e);
+         const double dx = 0.05 * GetElementLengthScale(e);
+
+         mesh->GetElementEdges(e, edges, orientations);
+         const int NEdges = edges.Size();
+         dbg("NEdges:{}", NEdges);
+         for (int i = 0; i < NEdges; i++) { dbg("edges[{}]:{}", i, edges[i]); }
+
+         auto *RefG = GLVisGeometryRefiner.Refine(mesh->GetElementBaseGeometry(e), 2, 2);
+         GetRefinedValues(e, RefG->RefPts, values, pointmat);
+         Array<int> &RE = RefG->RefEdges;
+         // const int NPack = RE.Size() / NEdges;
+         dbg("values.Size:{} RE.Size():{}", values.Size(), RE.Size());
+         dbg("pointmat Width():{} Height():{}", pointmat.Width(), pointmat.Height());
+         // for (int i = 0; i < pointmat.Width(); i++)
+         // {
+         //    for (int j = 0; j < pointmat.Height(); j++)
+         //    {
+         //       dbg("pointmat({},{})={}", j, i, pointmat(j,i));
+         //    }
+         // }
+
+         // for (int k = 0; k < RE.Size()/2; k++)
+         // {
+         //    dbg("RE #{}: {} {}", k, RE[2*k], RE[2*k+1]);
+         // }
+         // assert(RE.Size() % 2 == 0);
+         const int map[4] = { 0, 3, 1, 2 };
+         for (int i = 0; i < NEdges; i++)
+         {
+            dbg("i:{}",i);
+            const int j = 2 * i + 1;
+            dbg("\tj:{} RE[{}]:{}",j, j,RE[j]);
+            const double xx[3] = { pointmat(0, j),
+                                   pointmat(1, j),
+                                   values(j)
+                                 };
+            DrawNumberedMarker(f_nums_buf, xx, dx, edges[map[i]]);
+         }
+      }
+   }
+#else
+   {
+      dbg("Noncomforming, need mesh_coarse");
+      Vector values;
+      DenseMatrix pointmat;
+
+      for (int e = 0; e < ne; e++)
+      {
+         dbg("Element #{}", e);
+         const double dx = 0.05 * GetElementLengthScale(e);
+         auto *RefG = GLVisGeometryRefiner.Refine(mesh->GetElementBaseGeometry(e),
+                                                  TimesToRefine, EdgeRefineFactor);
+         GetRefinedValues(e, RefG->RefPts, values, pointmat);
+         Array<int> &RE = RefG->RefEdges;
+
+         auto &ref = mesh->GetRefinementTransforms();
+         // we assume that mesh_course is used only for tensor finite elements,
+         // like for representation of quadratures, so in 2D it is square
+         const int geom = Geometry::Type::SQUARE;
+         const int mat = ref.embeddings[e].matrix;
+         const DenseMatrix &emb_mat = ref.point_matrices[geom](mat);
+         IsoparametricTransformation trans;
+         BiLinear2DFiniteElement fe;
+         trans.SetFE(&fe);
+         trans.SetPointMat(emb_mat);
+         for (int k = 0; k < RE.Size()/2; k++)
+         {
+            Vector emb_ip1, emb_ip2;
+            trans.Transform(RefG->RefPts[RE[2*k]], emb_ip1);
+            trans.Transform(RefG->RefPts[RE[2*k+1]], emb_ip2);
+
+            // check if we are on the parent edge
+            if (!((   emb_ip1(0) == 0. && emb_ip2(0) == 0.)
+                  || (emb_ip1(0) == 1. && emb_ip2(0) == 1.)
+                  || (emb_ip1(1) == 0. && emb_ip2(1) == 0.)
+                  || (emb_ip1(1) == 1. && emb_ip2(1) == 1.)))
+            { continue; }
+
+            double x0[3] = {pointmat(0, RE[2*k]), pointmat(1, RE[2*k]), values(RE[2*k])};
+            DrawNumberedMarker(f_nums_buf, x0, dx, 0);
+
+            double x1[3] = {pointmat(0, RE[2*k+1]), pointmat(1, RE[2*k+1]), values(RE[2*k+1])};
+            DrawNumberedMarker(f_nums_buf, x1, dx, 1);
+         }
+      }
+   }
+#endif
    else { MFEM_ABORT("Shading not supported"); }
    updated_bufs.emplace_back(&f_nums_buf);
 }
@@ -2263,7 +2429,7 @@ void VisualizationSceneSolution::PrepareOrderingCurve1(gl3::GlDrawable& buf,
 
 void VisualizationSceneSolution::PrepareNumbering(bool invalidate)
 {
-   dbg();
+   dbg("drawnums:{}", (int)drawnums);
    if (invalidate)
    {
       // invalidate all numberings

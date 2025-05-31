@@ -2169,44 +2169,22 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
 
       for (int e = 0; e < ne; e++)
       {
-         dbg("Element #{}", e);
-         const double dx = 0.05 * GetElementLengthScale(e);
-
          mesh->GetElementEdges(e, edges, orientations);
-         const int NEdges = edges.Size();
-         dbg("NEdges:{}", NEdges);
-         for (int i = 0; i < NEdges; i++) { dbg("edges[{}]:{}", i, edges[i]); }
-
-         auto *RefG = GLVisGeometryRefiner.Refine(mesh->GetElementBaseGeometry(e), 2, 2);
+         const auto geom = mesh->GetElementBaseGeometry(e);
+         MFEM_VERIFY(geom == Geometry::TRIANGLE || geom == Geometry::SQUARE,
+                     "Only TRIANGLE and SQUARE geometries are supported.");
+         auto *RefG = GLVisGeometryRefiner.Refine(geom, 2, 2);
          GetRefinedValues(e, RefG->RefPts, values, pointmat);
-         Array<int> &RE = RefG->RefEdges;
-         // const int NPack = RE.Size() / NEdges;
-         dbg("values.Size:{} RE.Size():{}", values.Size(), RE.Size());
-         dbg("pointmat Width():{} Height():{}", pointmat.Width(), pointmat.Height());
-         // for (int i = 0; i < pointmat.Width(); i++)
-         // {
-         //    for (int j = 0; j < pointmat.Height(); j++)
-         //    {
-         //       dbg("pointmat({},{})={}", j, i, pointmat(j,i));
-         //    }
-         // }
-
-         // for (int k = 0; k < RE.Size()/2; k++)
-         // {
-         //    dbg("RE #{}: {} {}", k, RE[2*k], RE[2*k+1]);
-         // }
-         // assert(RE.Size() % 2 == 0);
-         const int map[4] = { 0, 3, 1, 2 };
-         for (int i = 0; i < NEdges; i++)
+         const int ij3[3] = { 1, 4, 3 }, ie3[3] = { 0, 1, 2 };
+         const int ij4[4] = { 1, 3, 5, 7 }, ie4[4] = { 0, 3, 1, 2 };
+         const int *ij = geom == Geometry::TRIANGLE ? ij3 : ij4;
+         const int *ie = geom == Geometry::TRIANGLE ? ie3 : ie4;
+         const double dx = 0.05 * GetElementLengthScale(e);
+         for (int i = 0; i < edges.Size(); i++)
          {
-            dbg("i:{}",i);
-            const int j = 2 * i + 1;
-            dbg("\tj:{} RE[{}]:{}",j, j,RE[j]);
-            const double xx[3] = { pointmat(0, j),
-                                   pointmat(1, j),
-                                   values(j)
-                                 };
-            DrawNumberedMarker(f_nums_buf, xx, dx, edges[map[i]]);
+            const int j = ij[i];
+            const double xx[3] = { pointmat(0,j), pointmat(1,j), values(j) };
+            DrawNumberedMarker(f_nums_buf, xx, dx, edges[ie[i]]);
          }
       }
    }

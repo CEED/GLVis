@@ -2132,6 +2132,60 @@ void VisualizationSceneSolution::PrepareDofNumbering()
    else if (shading == Shading::Flat || shading == Shading::Smooth)
    {
       FiniteElementSpace flat_fes(mesh, rsol_fec->Clone(1), rsol_fes->GetVDim());
+      dbg("sol->Size():{}", sol->Size());
+      dbg("flat_fes.GetNDofs():{}", flat_fes.GetNDofs());
+      dbg("flat_fes.GetVSize():{}", flat_fes.GetVSize());
+      dbg("vdim:{}", rsol_fes->GetVDim());
+
+      if (sol->Size() != flat_fes.GetNDofs())
+      {
+         H1_FECollection h1_fec(rsol_fec->GetOrder(), mesh->Dimension());
+         FiniteElementSpace flat_h1_fes(mesh, h1_fec.Clone(1), rsol_fes->GetVDim());
+         MFEM_VERIFY(sol->Size() == flat_h1_fes.GetNDofs(),
+                     "Flat H1 space does not match the solution size");
+
+         FiniteElementSpace flat_ho_fes(mesh, &h1_fec, rsol_fes->GetVDim());
+         const LORDiscretization lor_discretization(flat_ho_fes);
+         auto &lor_fes = lor_discretization.GetFESpace();
+         const auto &lor_perm = lor_discretization.GetDofPermutation();
+         MFEM_VERIFY(flat_ho_fes.GetNDofs() == lor_fes.GetNDofs(),
+                     "LOR space does not match the solution size");
+         dbg("lor_fes.GetVSize():{}", lor_fes.GetVSize());
+
+         InterpolationGridTransfer gt(flat_h1_fes, lor_fes);
+         GridFunction flat_h1_sol(&flat_h1_fes, sol->GetData()), lor_sol(&lor_fes);
+         gt.ForwardOperator().Mult(flat_h1_sol, lor_sol);
+
+         // store 'dx' for the sol mesh elements
+         std::map<int, double> dx;
+         for (int e = 0; e < ne; e++)
+         {
+            mesh->GetPointMatrix(e, tr);
+            ShrinkPoints(tr, e, 0, 0);
+            const auto dx_e = 0.05 * GetElementLengthScale(e);
+            flat_ho_fes.GetElementDofs(e, dofs);
+            for (int d = 0; d < dofs.Size(); d++) { dx[dofs[d]] = dx_e; }
+         }
+
+         // use the LOR mesh, fes & dofs
+         auto *lor_mesh = lor_fes.GetMesh();
+         for (int e = 0; e < lor_mesh->GetNE(); e++)
+         {
+            lor_fes.GetElementDofs(e, dofs);
+            lor_mesh->GetPointMatrix(e, tr);
+            const auto &ir = lor_fes.GetFE(e)->GetNodes();
+            for (int q = 0; q < ir.GetNPoints(); q++)
+            {
+               const int dof = dofs[lor_perm[q]];
+               const real_t x[3] = {tr(0,q), tr(1,q), LogVal(lor_sol(dof))};
+               DrawNumberedMarker(d_nums_buf, x, dx.at(dof), dof);
+            }
+         }
+
+         updated_bufs.emplace_back(&d_nums_buf);
+         return;
+      }
+
       MFEM_VERIFY(sol->Size() == flat_fes.GetNDofs(),
                   "Flat space does not match the solution size");
 
@@ -2140,6 +2194,7 @@ void VisualizationSceneSolution::PrepareDofNumbering()
       const auto &lor_perm = lor_discretization.GetDofPermutation();
       MFEM_VERIFY(rsol_fes->GetNDofs() == lor_fes.GetNDofs(),
                   "LOR space does not match the solution size");
+      dbg("rsol_fes:{} lor_fes:{}", rsol_fes->GetVDim(), lor_fes.GetVDim());
 
       InterpolationGridTransfer gt(flat_fes, lor_fes);
       GridFunction flat_sol(&flat_fes, sol->GetData()), lor_sol(&lor_fes);

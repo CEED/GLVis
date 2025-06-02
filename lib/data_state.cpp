@@ -52,8 +52,8 @@ DataState &DataState::operator=(DataState &&ss)
 
    type = ss.type;
    quad_sol = ss.quad_sol;
-   dbg("sol1: {}", ss.sol1.Size());
-   sol1 = std::move(ss.sol1);
+   dbg("sol: {}", ss.sol.Size());
+   sol = std::move(ss.sol);
    solu = std::move(ss.solu);
    solv = std::move(ss.solv);
    solw = std::move(ss.solw);
@@ -247,15 +247,15 @@ void DataState::Extrude1DMeshAndSolution()
 
       internal.grid_f.reset(grid_f_2d);
    }
-   else if (sol1.Size() == mesh->GetNV())
+   else if (sol.Size() == mesh->GetNV())
    {
-      dbg("sol1:{} from GetNV", sol1.Size());
+      dbg("sol1:{} from GetNV", sol.Size());
       Vector sol2d(mesh2d->GetNV());
       for (int i = 0; i < mesh->GetNV(); i++)
       {
-         sol2d(2*i+0) = sol2d(2*i+1) = sol1(i);
+         sol2d(2*i+0) = sol2d(2*i+1) = sol(i);
       }
-      sol1 = sol2d;
+      sol = sol2d;
    }
 
    if (!mesh_quad) { internal.mesh.swap(internal.mesh_quad); }
@@ -335,7 +335,7 @@ void DataState::SetMeshSolution()
          }
          cout << "Number of colors: " << grid_f->Max() + 1 << endl;
       }
-      grid_f->GetNodalValues(sol1);
+      grid_f->GetNodalValues(sol);
       if (save_coloring)
       {
          const char col_fname[] = "GLVis_coloring.gf";
@@ -347,8 +347,8 @@ void DataState::SetMeshSolution()
    }
    else // zero solution
    {
-      sol1.SetSize (mesh -> GetNV());
-      sol1 = 0.0;
+      sol.SetSize (mesh -> GetNV());
+      sol = 0.0;
    }
    type = FieldType::MESH;
 }
@@ -385,8 +385,8 @@ void DataState::SetGridFunctionSolution(int gf_component)
 
    if (grid_f->VectorDim() == 1)
    {
-      grid_f->GetNodalValues(sol1);
-      dbg("grid_f->GetNodalValues => sol1:{}", sol1.Size());
+      grid_f->GetNodalValues(sol);
+      dbg("grid_f->GetNodalValues => sol1:{}", sol.Size());
       type = FieldType::SCALAR;
    }
    else
@@ -627,9 +627,9 @@ void DataState::ResetMeshAndSolution(DataState &ss, VisualizationScene* vs)
       if (ss.grid_f->VectorDim() == 1)
       {
          auto *vss = dynamic_cast<VisualizationSceneSolution *>(vs);
-         ss.grid_f->GetNodalValues(ss.sol1);
-         dbg("[2D] grid_f->VectorDim() == 1, ss.sol1:{}", ss.sol1.Size());
-         vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &ss.sol1,
+         ss.grid_f->GetNodalValues(ss.sol);
+         dbg("[2D] grid_f->VectorDim() == 1, ss.sol1:{}", ss.sol.Size());
+         vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &ss.sol,
                                  ss.grid_f.get());
       }
       else
@@ -644,8 +644,8 @@ void DataState::ResetMeshAndSolution(DataState &ss, VisualizationScene* vs)
       {
          dbg("[3D] grid_f->VectorDim() == 1");
          auto *vss = dynamic_cast<VisualizationSceneSolution3d *>(vs);
-         ss.grid_f->GetNodalValues(ss.sol1);
-         vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &ss.sol1,
+         ss.grid_f->GetNodalValues(ss.sol);
+         vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &ss.sol,
                                  ss.grid_f.get());
       }
       else

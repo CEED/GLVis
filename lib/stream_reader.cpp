@@ -35,8 +35,8 @@ int StreamReader::ReadStream(
       dbg("fem2d_data");
       data.type = DataState::FieldType::SCALAR;
       data.SetMesh(new Mesh(is, 0, 0, data.save_coloring));
-      data.sol1.Load(is, data.mesh->GetNV());
-      dbg("sol1:{}", data.sol1.Size());
+      data.sol.Load(is, data.mesh->GetNV());
+      dbg("sol1:{}", data.sol.Size());
    }
    else if (data_type == "vfem2d_data" || data_type == "vfem2d_data_keys")
    {
@@ -53,7 +53,7 @@ int StreamReader::ReadStream(
    {
       data.type = DataState::FieldType::SCALAR;
       data.SetMesh(new Mesh(is, 0, 0, data.save_coloring));
-      data.sol1.Load(is, data.mesh->GetNV());
+      data.sol.Load(is, data.mesh->GetNV());
    }
    else if (data_type == "vfem3d_data" || data_type == "vfem3d_data_keys")
    {
@@ -177,7 +177,7 @@ int StreamReader::ReadStream(
       }
 
       data.SetMesh(new Mesh(2, tot_num_vert, tot_num_elem, 0));
-      data.sol1.SetSize(tot_num_vert);
+      data.sol.SetSize(tot_num_vert);
       data.normals.SetSize(3*tot_num_vert);
 
       int v_off = 0;
@@ -188,7 +188,7 @@ int StreamReader::ReadStream(
          for (int j = 0; j < num_vert; j++)
          {
             data.mesh->AddVertex(&verts[6*j]);
-            data.sol1(v_off) = verts[6*j+2];
+            data.sol(v_off) = verts[6*j+2];
             data.normals(3*v_off+0) = verts[6*j+3];
             data.normals(3*v_off+1) = verts[6*j+4];
             data.normals(3*v_off+2) = verts[6*j+5];

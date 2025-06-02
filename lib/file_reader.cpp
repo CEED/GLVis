@@ -75,7 +75,7 @@ int FileReader::ReadSerial(FileReader::FileType ft, const char *mesh_file,
             // get rid of NetGen's info line
             char buff[128];
             solin->getline(buff,128);
-            data.sol1.Load(*solin, data.mesh->GetNV());
+            data.sol.Load(*solin, data.mesh->GetNV());
             data.type = DataState::FieldType::SCALAR;
          }
          break;

@@ -619,9 +619,9 @@ void VisualizationSceneSolution::NewMeshAndSolution(
 #else
    assert(new_sol->Size() == mesh->GetNV() &&
           "New solution vector size does not match the mesh node count.");
-   delete sol_;
-   sol_  = new Vector(mesh -> GetNV());
-   new_u->GetNodalValues(*sol_);
+   delete sol;
+   sol  = new Vector(mesh -> GetNV());
+   new_u->GetNodalValues(*sol);
 #endif
    dbg("🔥🔥 new_u GetNodalValues to sol_ 🔥🔥");
 
@@ -878,7 +878,7 @@ void VisualizationSceneSolution::SetShading(Shading s, bool print)
    if (rsol)
    {
       dbg("rsol: {} {}", fmt::ptr(rsol), rsol->Size());
-      dbg(" sol: {} {}", fmt::ptr(sol_), sol_->Size());
+      dbg(" sol: {} {}", fmt::ptr(sol), sol->Size());
 
       if (s >= Shading::Max)
       {
@@ -1104,12 +1104,12 @@ void VisualizationSceneSolution::FindNewBox(double rx[], double ry[],
       int nv = mesh -> GetNV();
 
       double *coord = mesh->GetVertex(0);
-      dbg("\x1b[31msol: {} size: {}", fmt::ptr(sol_), sol_->Size());
-      rval[0] = rval[1] = (*sol_)(0); // ❌❌❌
-      for (i = 1; i < sol_->Size(); i++)
+      dbg("\x1b[31msol: {} size: {}", fmt::ptr(sol), sol->Size());
+      rval[0] = rval[1] = (*sol)(0); // ❌❌❌
+      for (i = 1; i < sol->Size(); i++)
       {
-         if ((*sol_)(i) < rval[0]) { rval[0] = (*sol_)(i); }
-         if ((*sol_)(i) > rval[1]) { rval[1] = (*sol_)(i); }
+         if ((*sol)(i) < rval[0]) { rval[0] = (*sol)(i); }
+         if ((*sol)(i) > rval[1]) { rval[1] = (*sol)(i); }
       }
       rx[0] = rx[1] = coord[0];
       ry[0] = ry[1] = coord[1];
@@ -1164,7 +1164,7 @@ void VisualizationSceneSolution::FindNewBox(double rx[], double ry[],
 
 void VisualizationSceneSolution::FindNewBox(bool prepare)
 {
-   dbg("sol:{} size: {}", fmt::ptr(sol_), sol_->Size());
+   dbg("sol:{} size: {}", fmt::ptr(sol), sol->Size());
    FindNewBox(bb.x, bb.y, bb.z);
 
    minv = bb.z[0];
@@ -1308,7 +1308,7 @@ void VisualizationSceneSolution::PrepareWithNormals()
       {
          vtx = mesh->GetVertex(vertices[j]);
          nor = &(*v_normals)(3*vertices[j]);
-         val = (*sol_)(vertices[j]);
+         val = (*sol)(vertices[j]);
          if (logscale && val >= minv && val <= maxv)
          {
             s = log_a/val;
@@ -1347,7 +1347,7 @@ void VisualizationSceneSolution::PrepareFlat()
       {
          pts[j][0] = pointmat(0, j);
          pts[j][1] = pointmat(1, j);
-         pts[j][2] = col[j] = LogVal((*sol_)(vertices[j]));
+         pts[j][2] = col[j] = LogVal((*sol)(vertices[j]));
       }
       if (pointmat.Width() == 3)
       {
@@ -1534,7 +1534,7 @@ void VisualizationSceneSolution::Prepare()
             {
                p[j][0] = pointmat(0, j);
                p[j][1] = pointmat(1, j);
-               p[j][2] = LogVal((*sol_)(vertices[j]));
+               p[j][2] = LogVal((*sol)(vertices[j]));
             }
 
             int normal_state;
@@ -1587,7 +1587,7 @@ void VisualizationSceneSolution::Prepare()
 
             for (int j = 0; j < pointmat.Size(); j++)
             {
-               double z = LogVal((*sol_)(vertices[j]));
+               double z = LogVal((*sol)(vertices[j]));
                MySetColor(poly, z, minv, maxv);
                poly.glNormal3d(nx(vertices[j]), ny(vertices[j]), nz(vertices[j]));
                poly.glVertex3d(pointmat(0, j), pointmat(1, j), z);
@@ -1619,7 +1619,7 @@ void VisualizationSceneSolution::PrepareLevelCurves()
    {
       mesh->GetElementVertices(i, vertices);
       mesh->GetPointMatrix(i, pointmat);
-      sol_->GetSubVector(vertices, values);
+      sol->GetSubVector(vertices, values);
       if (logscale)
          for (int j = 0; j < vertices.Size(); j++)
          {
@@ -1801,8 +1801,8 @@ void VisualizationSceneSolution::PrepareLines()
             double z2 = z1;
             if (mesh->Dimension() > 1) // In 1D we just put the mesh below the solution
             {
-               z1 = LogVal((*sol_)(vertices[j]));
-               z2 = LogVal((*sol_)(vertices[jp1]));
+               z1 = LogVal((*sol)(vertices[j]));
+               z2 = LogVal((*sol)(vertices[jp1]));
             }
 
             lb.glVertex3d (pointmat(0, j),
@@ -1830,7 +1830,7 @@ void VisualizationSceneSolution::PrepareLines()
             double z = GetMinV();
             if (mesh->Dimension() > 1) // In 1D we just put the mesh below the solution
             {
-               z = LogVal((*sol_)(vertices[j]));
+               z = LogVal((*sol)(vertices[j]));
             }
             lb.glVertex3d(pointmat(0, j), pointmat(1, j), z);
          }
@@ -1907,7 +1907,7 @@ void VisualizationSceneSolution::PrepareElementNumbering1()
       {
          xs += pointmat(0,j);
          ys += pointmat(1,j);
-         us += LogVal((*sol_)(vertices[j]));
+         us += LogVal((*sol)(vertices[j]));
       }
       xs /= nv;
       ys /= nv;
@@ -1992,7 +1992,7 @@ void VisualizationSceneSolution::PrepareVertexNumbering1()
       {
          double x = pointmat(0,j);
          double y = pointmat(1,j);
-         double u = LogVal((*sol_)(vertices[j]));
+         double u = LogVal((*sol)(vertices[j]));
 
          double xx[3] = {x,y,u};
          DrawNumberedMarker(v_nums_buf,xx,xs,vertices[j]);
@@ -2457,7 +2457,7 @@ void VisualizationSceneSolution::PrepareBoundary()
          mesh->GetBdrPointMatrix(i, pointmat);
          for (j = 0; j < pointmat.Size(); j++)
             bl.glVertex3d(pointmat(0, j), pointmat(1, j),
-                          LogVal((*sol_)(vertices[j])));
+                          LogVal((*sol)(vertices[j])));
       }
       bl.glEnd();
    }
@@ -2563,7 +2563,7 @@ void VisualizationSceneSolution::PrepareCP()
          ind.SetSize(vertices.Size());
          for (int j = 0; j < values.Size(); j++)
          {
-            values(j) = LogVal((*sol_)(vertices[j]));
+            values(j) = LogVal((*sol)(vertices[j]));
             ind[j] = j;
          }
 

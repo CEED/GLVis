@@ -696,7 +696,7 @@ VisualizationSceneSolution3d::VisualizationSceneSolution3d(Mesh &m, Vector &s,
 {
    mesh = &m;
    mesh_coarse = mc;
-   sol_ = &s;
+   sol = &s;
    GridF = NULL;
 
    Init();
@@ -834,7 +834,7 @@ void VisualizationSceneSolution3d::NewMeshAndSolution(
    Mesh *old_m = mesh;
    mesh = new_m;
    mesh_coarse = new_mc;
-   sol_ = new_sol;
+   sol = new_sol;
    GridF = new_u;
 
    // If the number of surface elements changes, recompute the refinement factor
@@ -1041,8 +1041,8 @@ void VisualizationSceneSolution3d::FindNewValueRange(bool prepare)
 
    if (shading < Shading::Noncomforming || map_type != (int)FiniteElement::VALUE)
    {
-      minv = sol_->Min();
-      maxv = sol_->Max();
+      minv = sol->Min();
+      maxv = sol->Max();
    }
    else
    {
@@ -1605,7 +1605,7 @@ void VisualizationSceneSolution3d::PrepareFlat()
          p[j][0] = pointmat(0, j);
          p[j][1] = pointmat(1, j);
          p[j][2] = pointmat(2, j);
-         c[j] = (*sol_)(vertices[j]);
+         c[j] = (*sol)(vertices[j]);
       }
       if (j == 3)
       {
@@ -2116,7 +2116,7 @@ void VisualizationSceneSolution3d::Prepare()
 
          for (j = 0; j < pointmat.Size(); j++)
          {
-            MySetColor(poly, (*sol_)(vertices[j]), minv, maxv);
+            MySetColor(poly, (*sol)(vertices[j]), minv, maxv);
             if (dim > 1) { poly.glNormal3d(nx(vertices[j]), ny(vertices[j]), nz(vertices[j])); }
             poly.glVertex3dv(&pointmat(0, j));
          }
@@ -2214,7 +2214,7 @@ void VisualizationSceneSolution3d::PrepareLines()
                {
                   point[j][k] = pointmat(k,j);
                }
-               point[j][3] = (*sol_)(vertices[j]);
+               point[j][3] = (*sol)(vertices[j]);
             }
             DrawPolygonLevelLines(line, point[0], pointmat.Size(), level, false);
             break;
@@ -2695,7 +2695,7 @@ void VisualizationSceneSolution3d::CuttingPlaneFunc(int func)
             {
                point[j][k] = t*pointmat(k,en[0]) + (1-t)*pointmat(k,en[1]);
             }
-            point[j][3] = t*(*sol_)(nodes[en[0]]) + (1-t)*(*sol_)(nodes[en[1]]);
+            point[j][3] = t*(*sol)(nodes[en[0]]) + (1-t)*(*sol)(nodes[en[1]]);
          }
 
          switch (func)
@@ -3073,7 +3073,7 @@ void VisualizationSceneSolution3d::PrepareCuttingPlane2()
                p[j][0] = coord[0];
                p[j][1] = coord[1];
                p[j][2] = coord[2];
-               c[j] = (*sol_)(nodes[j]);
+               c[j] = (*sol)(nodes[j]);
             }
 
             if (nodes.Size() == 3)
@@ -3236,7 +3236,7 @@ void VisualizationSceneSolution3d::PrepareCuttingPlaneLines2()
                pointmat(0, j) = coord[0];
                pointmat(1, j) = coord[1];
                pointmat(2, j) = coord[2];
-               pointmat(3, j) = (*sol_)(nodes[j]);
+               pointmat(3, j) = (*sol)(nodes[j]);
             }
             gl3::GlBuilder line = cplines_buf.createBuilder();
             switch (cp_drawmesh)
@@ -4044,7 +4044,7 @@ void VisualizationSceneSolution3d::PrepareLevelSurf()
          vals.SetSize(vertices.Size());
          for (int j = 0; j < vertices.Size(); j++)
          {
-            vals(j) = (*sol_)(vertices[j]);
+            vals(j) = (*sol)(vertices[j]);
          }
 
          switch (mesh->GetElementType(ie))

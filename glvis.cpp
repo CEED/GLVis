@@ -157,8 +157,8 @@ bool GLVisInitVis(StreamCollection input_streams)
       if (stream_state.grid_f)
       {
          dbg("grid_f Size:{}", stream_state.grid_f->Size());
-         stream_state.grid_f->GetNodalValues(stream_state.sol1);
-         dbg("sol1 Size:{}", stream_state.sol1.Size());
+         stream_state.grid_f->GetNodalValues(stream_state.sol);
+         dbg("sol1 Size:{}", stream_state.sol.Size());
       }
       if (stream_state.mesh->SpaceDimension() == 2)
       {
@@ -166,13 +166,13 @@ bool GLVisInitVis(StreamCollection input_streams)
          VisualizationSceneSolution * vss;
          if (stream_state.normals.Size() > 0)
          {
-            vs = vss = new VisualizationSceneSolution(*stream_state.mesh, stream_state.sol1,
+            vs = vss = new VisualizationSceneSolution(*stream_state.mesh, stream_state.sol,
                                                       stream_state.mesh_quad.get(), &stream_state.normals);
          }
          else
          {
-            dbg("VisualizationSceneSolution sol1 Size:{}", stream_state.sol1.Size());
-            vs = vss = new VisualizationSceneSolution(*stream_state.mesh, stream_state.sol1,
+            dbg("VisualizationSceneSolution sol1 Size:{}", stream_state.sol.Size());
+            vs = vss = new VisualizationSceneSolution(*stream_state.mesh, stream_state.sol,
                                                       stream_state.mesh_quad.get());
          }
          if (stream_state.grid_f)
@@ -194,7 +194,7 @@ bool GLVisInitVis(StreamCollection input_streams)
       {
          VisualizationSceneSolution3d * vss;
          vs = vss = new VisualizationSceneSolution3d(*stream_state.mesh,
-                                                     stream_state.sol1, stream_state.mesh_quad.get());
+                                                     stream_state.sol, stream_state.mesh_quad.get());
          if (stream_state.grid_f)
          {
             vss->SetGridFunction(stream_state.grid_f.get());
@@ -225,7 +225,7 @@ bool GLVisInitVis(StreamCollection input_streams)
          }
          else
          {
-            mesh_range = stream_state.sol1.Max() + 1.0;
+            mesh_range = stream_state.sol.Max() + 1.0;
          }
       }
    }
@@ -1176,7 +1176,7 @@ public:
       {
          // Set thread-local stream state
          dbg("Set thread-local stream state");
-         dbg("thread_state.sol1: {}", thread_state.sol1.Size());
+         dbg("thread_state.sol1: {}", thread_state.sol.Size());
          stream_state = std::move(thread_state);
          dbg("moved");
          if (c_plot_caption != string_none)
@@ -1192,7 +1192,7 @@ public:
          }
       };
       dbg("Moving state & input_streams to handler...");
-      dbg("state.sol1: {}", state.sol1.Size());
+      dbg("state.sol1: {}", state.sol.Size());
       handler = std::thread {funcThread,
                              std::move(state),
                              std::move(input_streams)};

@@ -59,13 +59,12 @@ foreach(test_name IN LISTS stream_tests)
            -a "-lw 1 -mslw 1 -nohidpi")
 
   add_custom_target(_rebaseline_stream_${test_name}
-      COMMAND ${CMAKE_COMMAND} -E make_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/data/baselines/local
-      COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_CURRENT_BINARY_DIR}/test.${test_name}.png
-        ${CMAKE_CURRENT_SOURCE_DIR}/data/baselines/local
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/data/baselines/local
+      COMMAND ${CMAKE_COMMAND} -E copy 
+        ${CMAKE_CURRENT_BINARY_DIR}/outputs/${test_name}/test.nominal.${test_name}.png
+        ${CMAKE_CURRENT_SOURCE_DIR}/data/baselines/local/test.${test_name}.saved.png
       DEPENDS
-        ${CMAKE_CURRENT_BINARY_DIR}/test.${test_name}.png
+        ${CMAKE_CURRENT_BINARY_DIR}/outputs/${test_name}/test.nominal.${test_name}.png
       VERBATIM)
 
   add_dependencies(rebaseline _rebaseline_stream_${test_name})

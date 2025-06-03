@@ -2098,6 +2098,7 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
 
 void VisualizationSceneSolution::PrepareDofNumbering()
 {
+   Vector vals;
    DenseMatrix tr;
    Array<int> dofs;
 
@@ -2107,13 +2108,9 @@ void VisualizationSceneSolution::PrepareDofNumbering()
    auto *rsol_fes = rsol->FESpace();
    const auto *rsol_fec = rsol_fes->FEColl();
    FiniteElementSpace rdof_fes(mesh, rsol_fec);
-   // filter out unsupported basis types for Flat or Smooth shading
-   const bool force_non_comforming =
-      rsol_fes->GetTypicalFE()->GetRangeType() == FiniteElement::RangeType::VECTOR;
 
-   if (shading == Shading::Noncomforming || force_non_comforming)
+   if (shading == Shading::Noncomforming)
    {
-      Vector vals;
       for (int e = 0; e < ne; e++)
       {
          if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
@@ -2121,7 +2118,6 @@ void VisualizationSceneSolution::PrepareDofNumbering()
          const IntegrationRule &ir = rsol_fes->GetFE(e)->GetNodes();
          GetRefinedValues(e, ir, vals, tr);
          rdof_fes.GetElementDofs(e, dofs);
-         rdof_fes.AdjustVDofs(dofs);
          for (int q = 0; q < ir.GetNPoints(); q++)
          {
             const real_t x[3] = {tr(0,q), tr(1,q), vals[q]};
@@ -2129,8 +2125,35 @@ void VisualizationSceneSolution::PrepareDofNumbering()
          }
       }
    }
+   else if (rsol_fes->GetTypicalFE()->GetRangeType() ==
+            FiniteElement::RangeType::VECTOR)
+   {
+      H1_FECollection h1_fec(1, mesh->Dimension());
+      FiniteElementSpace h1_fes(mesh, &h1_fec);
+      MFEM_VERIFY(sol->Size() == h1_fes.GetNDofs(),
+                  "Flat space does not match the solution size");
+      GridFunction h1_sol(&h1_fes, sol->GetData());
+
+      for (int e = 0; e < ne; e++)
+      {
+         const IntegrationRule &ir = rsol_fes->GetFE(e)->GetNodes();
+         const auto dx = 0.05 * GetElementLengthScale(e);
+         GetRefinedValues(e, ir, vals, tr);
+         ShrinkPoints(tr, e, 0, 0);
+         rdof_fes.GetElementDofs(e, dofs);
+         rdof_fes.AdjustVDofs(dofs);
+         for (int q = 0; q < ir.GetNPoints(); q++)
+         {
+            const real_t z = h1_sol.GetValue(e, ir.IntPoint(q));
+            const real_t x[3] = {tr(0,q), tr(1,q), z};
+            DrawNumberedMarker(d_nums_buf, x, dx, dofs[q]);
+         }
+      }
+   }
    else if (shading == Shading::Flat || shading == Shading::Smooth)
    {
+      FiniteElementSpace flat_fes(mesh, rsol_fec->Clone(1), rsol_fes->GetVDim());
+
       dbg("sol->Size():{}", sol->Size());
       dbg("flat_fes.GetNDofs():{}", flat_fes.GetNDofs());
       dbg("flat_fes.GetVSize():{}", flat_fes.GetVSize());

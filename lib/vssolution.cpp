@@ -611,19 +611,15 @@ void VisualizationSceneSolution::NewMeshAndSolution(
    MFEM_VERIFY(new_sol->Size() == mesh->GetNV(),
                "New solution vector size does not match the mesh node count.");
    delete sol;
-   sol  = new Vector(mesh->GetNV());
-   SetGridFunction(*new_u);
-
-#if 0
-   sol_ = new_sol;
-#else
-   assert(new_sol->Size() == mesh->GetNV() &&
-          "New solution vector size does not match the mesh node count.");
-   delete sol;
-   sol  = new Vector(mesh -> GetNV());
-   new_u->GetNodalValues(*sol);
-#endif
-   dbg("🔥🔥 new_u GetNodalValues to sol_ 🔥🔥");
+   sol = new Vector(mesh->GetNV());
+   if (new_u)
+   {
+      SetGridFunction(*new_u);
+   }
+   else
+   {
+      for (int i = 0; i < mesh->GetNV(); i++) { (*sol)(i) = (*new_sol)(i); }
+   }
 
    // If the number of elements changes, recompute the refinement factor
    if (mesh->GetNE() != old_m->GetNE())
@@ -2111,9 +2107,9 @@ void VisualizationSceneSolution::PrepareDofNumbering()
    auto *rsol_fes = rsol->FESpace();
    const auto *rsol_fec = rsol_fes->FEColl();
    FiniteElementSpace rdof_fes(mesh, rsol_fec);
-   FiniteElementSpace flat_fes(mesh, rsol_fec->Clone(1), rsol_fes->GetVDim());
-   // filter out not supported basis types
-   const bool force_non_comforming = sol->Size() != flat_fes.GetNDofs();
+   // filter out unsupported basis types for Flat or Smooth shading
+   const bool force_non_comforming =
+      rsol_fes->GetTypicalFE()->GetRangeType() == FiniteElement::RangeType::VECTOR;
 
    if (shading == Shading::Noncomforming || force_non_comforming)
    {

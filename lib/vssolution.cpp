@@ -2125,8 +2125,8 @@ void VisualizationSceneSolution::PrepareDofNumbering()
          }
       }
    }
-   else if (rsol_fes->GetTypicalFE()->GetRangeType() ==
-            FiniteElement::RangeType::VECTOR)
+   else if (dynamic_cast<const L2_FECollection*>(rsol_fec) ||
+            rsol_fes->GetTypicalFE()->GetRangeType() == FiniteElement::RangeType::VECTOR)
    {
       H1_FECollection h1_fec(1, mesh->Dimension());
       FiniteElementSpace h1_fes(mesh, &h1_fec);
@@ -2136,7 +2136,7 @@ void VisualizationSceneSolution::PrepareDofNumbering()
 
       for (int e = 0; e < ne; e++)
       {
-         const IntegrationRule &ir = rsol_fes->GetFE(e)->GetNodes();
+         const auto &ir = rsol_fes->GetFE(e)->GetNodes();
          const auto dx = 0.05 * GetElementLengthScale(e);
          GetRefinedValues(e, ir, vals, tr);
          ShrinkPoints(tr, e, 0, 0);

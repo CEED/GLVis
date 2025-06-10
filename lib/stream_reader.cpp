@@ -251,8 +251,8 @@ int StreamReader::ReadStream(
 
 int StreamReader::ReadStreams(const StreamCollection &input_streams)
 {
-   dbg();
    const int nproc = input_streams.size();
+   dbg("nproc:{}", nproc);
    std::vector<Mesh*> mesh_array(nproc);
    std::vector<GridFunction*> gf_array(nproc);
    std::vector<QuadratureFunction*> qf_array(nproc);
@@ -264,6 +264,7 @@ int StreamReader::ReadStreams(const StreamCollection &input_streams)
 
    for (int p = 0; p < nproc; p++)
    {
+      dbg("p: {}/{}", p+1, nproc);
 #ifdef GLVIS_DEBUG
       cout << "connection[" << p << "]: reading initial data ... " << flush;
 #endif
@@ -277,6 +278,7 @@ int StreamReader::ReadStreams(const StreamCollection &input_streams)
       if (!data.keep_attr)
       {
          // set element and boundary attributes to proc+1
+         dbg("Set element and boundary attributes to {}", p+1);
          for (int i = 0; i < mesh_array[p]->GetNE(); i++)
          {
             mesh_array[p]->GetElement(i)->SetAttribute(p+1);
@@ -294,6 +296,7 @@ int StreamReader::ReadStreams(const StreamCollection &input_streams)
       }
       else if (data_type != "mesh")
       {
+         dbg("mesh");
          gf_array[p] = new GridFunction(mesh_array[p], isock);
          gf_count++;
       }
@@ -308,9 +311,13 @@ int StreamReader::ReadStreams(const StreamCollection &input_streams)
       mfem_error("Input streams contain a mixture of data types!");
    }
 
+   dbg("Now SetMesh");
    data.SetMesh(new Mesh(mesh_array.data(), nproc));
+   data.SetOffsets(gf_array);
+
    if (gf_count > 0)
    {
+      dbg("Now SetGridFunction");
       data.SetGridFunction(new GridFunction(data.mesh.get(), gf_array.data(), nproc));
    }
    else if (qf_count > 0)

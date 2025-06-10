@@ -1197,10 +1197,10 @@ public:
                              std::move(state),
                              std::move(input_streams)};
       fflush(nullptr);
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
       dbg("detaching...");
       handler.detach();
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
       dbg("done");
    }
 
@@ -1255,6 +1255,7 @@ public:
 void GLVisServer(int portnum, bool save_stream, bool fix_elem_orient,
                  bool save_coloring)
 {
+   dbg();
    std::vector<Session> current_sessions;
    string data_type;
    int viscount = 0;
@@ -1333,11 +1334,13 @@ void GLVisServer(int portnum, bool save_stream, bool fix_elem_orient,
       int par_data = 0;
       if (data_type == "parallel")
       {
+         dbg("parallel");
          par_data = 1;
          unsigned int np = 0;
          do
          {
             *isock >> nproc >> proc;
+            dbg("nproc: {}, proc: {}", nproc, proc);
 #ifdef GLVIS_DEBUG
             cout << "new connection: parallel " << nproc << ' ' << proc
                  << endl;

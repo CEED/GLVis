@@ -74,6 +74,49 @@ void DataState::SetMesh(Mesh *mesh_)
    SetMesh(std::move(internal.mesh));
 }
 
+void DataState::SetOffsets(std::vector<mfem::GridFunction*> &gf_array)
+{
+   const int nprocs = static_cast<int>(gf_array.size());
+   dbg("{} grid functions", nprocs);
+   MFEM_VERIFY(!gf_array.empty(), "No grid functions provided for offsets");
+
+   auto dso = new DataState::offsets_t[nprocs+1] {};
+   for (int i = 0; i < nprocs; i++)
+   {
+      FiniteElementSpace *l_fes = gf_array[i]->FESpace();
+      const int l_ndofs  = l_fes->GetNDofs();
+      const int l_nvdofs = l_fes->GetNVDofs();
+      const int l_nedofs = l_fes->GetNEDofs();
+      const int l_nfdofs = l_fes->GetNFDofs();
+      const int l_nddofs = l_ndofs - (l_nvdofs + l_nedofs + l_nfdofs);
+      // dbg("[local] fes {}: ndofs={}, nvdofs={}, nedofs={}, nfdofs={}, nddofs={}",
+      //     i, l_ndofs, l_nvdofs, l_nedofs, l_nfdofs, l_nddofs);
+
+      dso[i+1].ndofs = dso[i].ndofs + l_ndofs;
+      dso[i+1].nvdofs = dso[i].nvdofs + l_nvdofs;
+      dso[i+1].nedofs = dso[i].nedofs + l_nedofs;
+      dso[i+1].nfdofs = dso[i].nfdofs + l_nfdofs;
+      dso[i+1].nddofs = dso[i].nddofs + l_nddofs;
+      // dbg("[local] {} ndofs:{} nvdofs:{}, nedofs:{} nfdofs:{} nddofs:{}",
+      //     i+1, dso[i+1].ndofs, dso[i+1].nvdofs, dso[i+1].nedofs,
+      //     dso[i+1].nfdofs, dso[i+1].nddofs);
+   }
+   internal.offsets.reset(dso);
+
+   {
+      FiniteElementSpace *fes0 = gf_array[0]->FESpace();
+      const auto fec_owned = FiniteElementCollection::New(fes0->FEColl()->Name());
+      const auto vdim = fes0->GetVDim();
+      const auto ordering = fes0->GetOrdering();
+      FiniteElementSpace fes(internal.mesh.get(), fec_owned, vdim, ordering);
+
+      assert((int)dso[nprocs].nvdofs == fes.GetNVDofs());
+      assert((int)dso[nprocs].nedofs == fes.GetNEDofs());
+      assert((int)dso[nprocs].nfdofs == fes.GetNFDofs());
+      // assert(false && "✅✅✅✅");
+   }
+}
+
 void DataState::SetMesh(std::unique_ptr<Mesh> &&pmesh)
 {
    dbg();
@@ -85,7 +128,7 @@ void DataState::SetMesh(std::unique_ptr<Mesh> &&pmesh)
 
 void DataState::SetGridFunction(GridFunction *gf, int component)
 {
-   dbg();
+   dbg("gf:{}", fmt::ptr(gf));
    internal.grid_f.reset(gf);
    SetGridFunction(std::move(internal.grid_f), component);
 }
@@ -386,11 +429,12 @@ void DataState::SetGridFunctionSolution(int gf_component)
    if (grid_f->VectorDim() == 1)
    {
       grid_f->GetNodalValues(sol);
-      dbg("grid_f->GetNodalValues => sol1:{}", sol.Size());
+      dbg("SCALAR grid_f->GetNodalValues => sol1:{}", sol.Size());
       type = FieldType::SCALAR;
    }
    else
    {
+      dbg("VECTOR grid_f->GetNodalValues => sol1:{}", sol.Size());
       type = FieldType::VECTOR;
    }
 }

@@ -49,6 +49,11 @@ struct DataState
 private:
    friend class StreamReader;
    friend class FileReader;
+   struct offsets_t
+   {
+      size_t ndofs, nvdofs, nedofs, nfdofs, nddofs;
+      offsets_t() = default;
+   };
    struct
    {
       std::unique_ptr<mfem::Mesh> mesh;
@@ -56,6 +61,7 @@ private:
       std::unique_ptr<mfem::GridFunction> grid_f;
       std::unique_ptr<mfem::QuadratureFunction> quad_f;
       std::unique_ptr<mfem::DataCollection> data_coll;
+      std::unique_ptr<offsets_t> offsets;
    } internal;
 
    FieldType type {FieldType::UNKNOWN};
@@ -71,6 +77,7 @@ public:
    const std::unique_ptr<mfem::GridFunction> &grid_f{internal.grid_f};
    const std::unique_ptr<mfem::QuadratureFunction> &quad_f{internal.quad_f};
    const std::unique_ptr<mfem::DataCollection> &data_coll{internal.data_coll};
+   const std::unique_ptr<offsets_t> &offsets{internal.offsets};
 
    std::string keys;
    bool fix_elem_orient{false};
@@ -88,6 +95,9 @@ public:
    /** Note that ownership is passed from the caller.
        @see SetMesh(std::unique_ptr<mfem::Mesh> &&pmesh) */
    void SetMesh(mfem::Mesh *mesh);
+
+   /// Set the offsets from the grid function array
+   void SetOffsets(std::vector<mfem::GridFunction*> &gf_array);
 
    /// Set a mesh (unique pointer version)
    /** Sets the mesh and resets grid/quadrature functions if they do not use

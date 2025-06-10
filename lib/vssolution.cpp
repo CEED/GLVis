@@ -191,6 +191,7 @@ static void SwitchAttribute(int increment, int &attribute,
    }
    else
    {
+      vssol->PrepareNumbering();
       vssol->PrepareLines();
       vssol->Prepare();
    }
@@ -431,10 +432,7 @@ VisualizationSceneSolution::VisualizationSceneSolution(
        s.Size(), fmt::ptr(mc), fmt::ptr(normals), fmt::ptr(rsol));
    mesh = &m;
    mesh_coarse = mc;
-
-   sol  = new Vector(mesh -> GetNV());
-   dbg("rsol:{}", fmt::ptr(rsol));
-
+   sol = &s;
    v_normals = normals;
 
    Init();
@@ -529,7 +527,6 @@ void VisualizationSceneSolution::Init()
 
 VisualizationSceneSolution::~VisualizationSceneSolution()
 {
-   delete sol;
 }
 
 void VisualizationSceneSolution::ToggleDrawElems()
@@ -593,13 +590,6 @@ void VisualizationSceneSolution::ToggleDrawElems()
    }
 }
 
-void VisualizationSceneSolution::SetGridFunction(GridFunction & u)
-{
-   dbg("✅✅✅✅ SetGridFunction: u:{}", u.Size());
-   rsol = &u;
-   u.GetNodalValues(*sol);
-}
-
 void VisualizationSceneSolution::NewMeshAndSolution(
    Mesh *new_m, Mesh *new_mc, Vector *new_sol, GridFunction *new_u)
 {
@@ -608,18 +598,10 @@ void VisualizationSceneSolution::NewMeshAndSolution(
    Mesh *old_m = mesh;
    mesh = new_m;
    mesh_coarse = new_mc;
+   sol = new_sol;
+   rsol = new_u;
    MFEM_VERIFY(new_sol->Size() == mesh->GetNV(),
                "New solution vector size does not match the mesh node count.");
-   delete sol;
-   sol = new Vector(mesh->GetNV());
-   if (new_u)
-   {
-      SetGridFunction(*new_u);
-   }
-   else
-   {
-      for (int i = 0; i < mesh->GetNV(); i++) { (*sol)(i) = (*new_sol)(i); }
-   }
 
    // If the number of elements changes, recompute the refinement factor
    if (mesh->GetNE() != old_m->GetNE())
@@ -731,8 +713,10 @@ void VisualizationSceneSolution::GetRefinedDetJ(
    J.ClearExternalData();
 }
 
-void VisualizationSceneSolution::GetRefinedValues(
-   int i, const IntegrationRule &ir, Vector &vals, DenseMatrix &tr)
+void VisualizationSceneSolution::GetRefinedValues(const int i,
+                                                  const IntegrationRule &ir,
+                                                  Vector &vals, DenseMatrix &tr,
+                                                  const bool do_shrink)
 {
    if (drawelems < 2)
    {
@@ -749,15 +733,16 @@ void VisualizationSceneSolution::GetRefinedValues(
          vals(j) = _LogVal(vals(j));
       }
 
-   if (shrink != 1.0 || shrinkmat != 1.0)
+   if (do_shrink && (shrink != 1.0 || shrinkmat != 1.0))
    {
       ShrinkPoints(tr, i, 0, 0);
    }
 }
 
-int VisualizationSceneSolution::GetRefinedValuesAndNormals(
-   int i, const IntegrationRule &ir, Vector &vals, DenseMatrix &tr,
-   DenseMatrix &normals)
+int VisualizationSceneSolution::GetRefinedValuesAndNormals(const int i,
+                                                           const IntegrationRule &ir,
+                                                           Vector &vals, DenseMatrix &tr,
+                                                           DenseMatrix &normals)
 {
    int have_normals = 0;
 
@@ -1890,6 +1875,8 @@ void VisualizationSceneSolution::PrepareElementNumbering1()
    int ne = mesh->GetNE();
    for (int k = 0; k < ne; k++)
    {
+      if (!el_attr_to_show[mesh->GetAttribute(k) - 1]) { continue; }
+
       mesh->GetPointMatrix (k, pointmat);
       mesh->GetElementVertices (k, vertices);
       int nv = vertices.Size();
@@ -1975,11 +1962,11 @@ void VisualizationSceneSolution::PrepareVertexNumbering1()
    const int ne = mesh->GetNE();
    for (int k = 0; k < ne; k++)
    {
+      if (!el_attr_to_show[mesh->GetAttribute(k) - 1]) { continue; }
+
       mesh->GetPointMatrix (k, pointmat);
       mesh->GetElementVertices (k, vertices);
       int nv = vertices.Size();
-
-      ShrinkPoints(pointmat, k, 0, 0);
 
       double ds = GetElementLengthScale(k);
       double xs = 0.05*ds;
@@ -2052,6 +2039,7 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
    {
       for (int e = 0; e < mesh->GetNE(); e++)
       {
+         if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
          mesh->GetElementEdges(e, edges, edges_ori);
          const double dx = 0.05 * GetElementLengthScale(e);
          for (int i = 0; i < edges.Size(); i++)
@@ -2072,6 +2060,7 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
    {
       for (int e = 0; e < mesh->GetNE(); e++)
       {
+         if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
          mesh->GetElementEdges(e, edges, edges_ori);
          const auto dx = 0.05 * GetElementLengthScale(e);
          const auto geom = mesh->GetElementBaseGeometry(e);
@@ -2079,7 +2068,6 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
                      "Only TRIANGLE and SQUARE geometries are supported.");
          const auto *RefG = GLVisGeometryRefiner.Refine(geom, 2, 2);
          GetRefinedValues(e, RefG->RefPts, vals, p);
-         ShrinkPoints(p, e, 0, 0);
          const int ij3[3] = { 1, 4, 3 }, ie3[3] = { 0, 1, 2 };
          const int ij4[4] = { 1, 3, 5, 7 }, ie4[4] = { 0, 3, 1, 2 };
          const int *ij = geom == Geometry::TRIANGLE ? ij3 : ij4;
@@ -2104,103 +2092,32 @@ void VisualizationSceneSolution::PrepareDofNumbering()
 
    d_nums_buf.clear();
 
-   const int ne = mesh->GetNE();
    auto *rsol_fes = rsol->FESpace();
-   const auto *rsol_fec = rsol_fes->FEColl();
-   FiniteElementSpace rdof_fes(mesh, rsol_fec);
+   FiniteElementSpace rdof_fes(mesh, rsol_fes->FEColl());
+   H1_FECollection h1_fec(1, mesh->Dimension());
+   FiniteElementSpace h1_fes(mesh, &h1_fec);
+   MFEM_VERIFY(sol->Size() == h1_fes.GetNDofs(),
+               "Flat space does not match the solution size");
+   GridFunction h1_sol(&h1_fes, sol->GetData());
+   const bool non_conforming_shading = shading == Shading::Noncomforming;
 
-   if (shading == Shading::Noncomforming)
+   for (int e = 0; e < mesh->GetNE(); e++)
    {
-      for (int e = 0; e < ne; e++)
+      if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
+      const auto dx = 0.05 * GetElementLengthScale(e);
+      const auto &ir = rsol_fes->GetFE(e)->GetNodes();
+      const bool do_shrink = non_conforming_shading;
+      GetRefinedValues(e, ir, vals, tr, do_shrink);
+      rdof_fes.GetElementDofs(e, dofs);
+      rdof_fes.AdjustVDofs(dofs);
+      for (int q = 0; q < ir.GetNPoints(); q++)
       {
-         if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
-         const auto dx = 0.05 * GetElementLengthScale(e);
-         const IntegrationRule &ir = rsol_fes->GetFE(e)->GetNodes();
-         GetRefinedValues(e, ir, vals, tr);
-         rdof_fes.GetElementDofs(e, dofs);
-         for (int q = 0; q < ir.GetNPoints(); q++)
-         {
-            const real_t x[3] = {tr(0,q), tr(1,q), vals[q]};
-            DrawNumberedMarker(d_nums_buf, x, dx, dofs[q]);
-         }
+         const real_t z = non_conforming_shading ? vals[q] :
+                          h1_sol.GetValue(e, ir.IntPoint(q));
+         const real_t x[3] = {tr(0,q), tr(1,q), z};
+         DrawNumberedMarker(d_nums_buf, x, dx, dofs[q]);
       }
    }
-   else if (dynamic_cast<const L2_FECollection*>(rsol_fec) ||
-            rsol_fes->GetTypicalFE()->GetRangeType() == FiniteElement::RangeType::VECTOR)
-   {
-      H1_FECollection h1_fec(1, mesh->Dimension());
-      FiniteElementSpace h1_fes(mesh, &h1_fec);
-      MFEM_VERIFY(sol->Size() == h1_fes.GetNDofs(),
-                  "Flat space does not match the solution size");
-      GridFunction h1_sol(&h1_fes, sol->GetData());
-
-      for (int e = 0; e < ne; e++)
-      {
-         const auto &ir = rsol_fes->GetFE(e)->GetNodes();
-         const auto dx = 0.05 * GetElementLengthScale(e);
-         GetRefinedValues(e, ir, vals, tr);
-         ShrinkPoints(tr, e, 0, 0);
-         rdof_fes.GetElementDofs(e, dofs);
-         rdof_fes.AdjustVDofs(dofs);
-         for (int q = 0; q < ir.GetNPoints(); q++)
-         {
-            const real_t z = h1_sol.GetValue(e, ir.IntPoint(q));
-            const real_t x[3] = {tr(0,q), tr(1,q), z};
-            DrawNumberedMarker(d_nums_buf, x, dx, dofs[q]);
-         }
-      }
-   }
-   else if (shading == Shading::Flat || shading == Shading::Smooth)
-   {
-      FiniteElementSpace flat_fes(mesh, rsol_fec->Clone(1), rsol_fes->GetVDim());
-
-      dbg("sol->Size():{}", sol->Size());
-      dbg("flat_fes.GetNDofs():{}", flat_fes.GetNDofs());
-      dbg("flat_fes.GetVSize():{}", flat_fes.GetVSize());
-      dbg("vdim:{}", rsol_fes->GetVDim());
-
-      MFEM_VERIFY(sol->Size() == flat_fes.GetNDofs(),
-                  "Flat space does not match the solution size");
-
-      const LORDiscretization lor_discretization(*rsol_fes);
-      auto &lor_fes = lor_discretization.GetFESpace();
-      const auto &lor_perm = lor_discretization.GetDofPermutation();
-      MFEM_VERIFY(rsol_fes->GetNDofs() == lor_fes.GetNDofs(),
-                  "LOR space does not match the solution size");
-      dbg("rsol_fes:{} lor_fes:{}", rsol_fes->GetVDim(), lor_fes.GetVDim());
-
-      InterpolationGridTransfer gt(flat_fes, lor_fes);
-      GridFunction flat_sol(&flat_fes, sol->GetData()), lor_sol(&lor_fes);
-      gt.ForwardOperator().Mult(flat_sol, lor_sol);
-
-      // store 'dx' for the sol mesh elements
-      std::map<int, double> dx;
-      for (int e = 0; e < ne; e++)
-      {
-         mesh->GetPointMatrix(e, tr);
-         ShrinkPoints(tr, e, 0, 0);
-         const auto dx_e = 0.05 * GetElementLengthScale(e);
-         rdof_fes.GetElementDofs(e, dofs);
-         for (int d = 0; d < dofs.Size(); d++) { dx[dofs[d]] = dx_e; }
-      }
-
-      // use the LOR mesh, fes & dofs
-      auto *lor_mesh = lor_fes.GetMesh();
-      for (int e = 0; e < lor_mesh->GetNE(); e++)
-      {
-         lor_fes.GetElementDofs(e, dofs);
-         lor_mesh->GetPointMatrix(e, tr);
-         const auto &ir = lor_fes.GetFE(e)->GetNodes();
-         for (int q = 0; q < ir.GetNPoints(); q++)
-         {
-            const int dof = dofs[lor_perm[q]];
-            const real_t x[3] = {tr(0,q), tr(1,q), LogVal(lor_sol(dof))};
-            MFEM_VERIFY(dof >= 0, "Invalid dof index");
-            DrawNumberedMarker(d_nums_buf, x, dx.at(dof), dof);
-         }
-      }
-   }
-   else { MFEM_ABORT("Shading not supported"); }
    updated_bufs.emplace_back(&d_nums_buf);
 }
 

@@ -64,8 +64,9 @@ protected:
                        mfem::Vector &vals, mfem::DenseMatrix &tr);
 
    // redefined for vector solution
-   virtual void GetRefinedValues(int i, const mfem::IntegrationRule &ir,
-                                 mfem::Vector &vals, mfem::DenseMatrix &tr);
+   virtual void GetRefinedValues(const int i, const mfem::IntegrationRule &ir,
+                                 mfem::Vector &vals, mfem::DenseMatrix &tr,
+                                 const bool do_shrink = true);
    virtual int GetRefinedValuesAndNormals(int i, const mfem::IntegrationRule &ir,
                                           mfem::Vector &vals, mfem::DenseMatrix &tr,
                                           mfem::DenseMatrix &normals);
@@ -93,7 +94,7 @@ public:
 
    std::string GetHelpString() const override;
 
-   void SetGridFunction(mfem::GridFunction & u);
+   void SetGridFunction(mfem::GridFunction & u) { rsol = &u; }
 
    void NewMeshAndSolution(mfem::Mesh *new_m, mfem::Mesh *new_mc,
                            mfem::Vector *new_sol,

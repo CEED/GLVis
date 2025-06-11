@@ -189,8 +189,6 @@ bool GLVisInitVis(StreamCollection input_streams)
             // the 'jet-like' palette is used in 2D, see vssolution.cpp).
             vs->palette.SetIndex(4);
          }
-         // MFEM_VERIFY(stream_state.offsets,
-         //             "Offsets must be set for VisualizationSceneSolution");
          vs->SetDataOffsets(stream_state.offsets.get());
       }
       else if (stream_state.mesh->SpaceDimension() == 3)

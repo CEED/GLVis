@@ -82,15 +82,33 @@ void DataState::ComputeDofsOffsets(std::vector<mfem::GridFunction*> &gf_array)
 
    internal.offsets.reset(new DataOffsets(nprocs));
 
-   Array<int> dofs;
-   for (int i = 0; i < nprocs; i++)
+   DenseMatrix pointmat;
+   Array<int> dofs, vertices;
+   for (int i = 0, g_e = 0; i < nprocs; i++)
    {
-      const FiniteElementSpace *l_fes = gf_array[i]->FESpace();
-      const Mesh *l_mesh = l_fes->GetMesh();
+      // dbg("Rank #{}", i);
+      const GridFunction *gf = gf_array[i];
+      const FiniteElementSpace *l_fes = gf->FESpace();
+      Mesh *l_mesh = l_fes->GetMesh();
       // store the dofs numbers as they are fespace dependent
       auto &offset = offsets->operator[](i);
-      for (int l_e = 0, g_e = 0; l_e < l_mesh->GetNE(); l_e++, g_e++)
+      for (int l_e = 0; l_e < l_mesh->GetNE(); l_e++, g_e++)
       {
+         // Elements
+         l_mesh->GetPointMatrix(l_e, pointmat);
+         const int nv = pointmat.Width();
+         double xs = 0.0, ys = 0.0;
+         // dbg("\tElement local #{} (global #{})", l_e, g_e);
+         for (int j = 0; j < nv; j++)
+         {
+            // dbg("\t\tVertex #{}: ({:f}, {:f})", j, pointmat(0,j), pointmat(1,j));
+            xs += pointmat(0,j), ys += pointmat(1,j);
+         }
+         xs /= nv, ys /= nv;
+         // dbg("\tElement local #{} (global #{}): xs:{} ys:{}", l_e, g_e, xs, ys);
+         offset.exy_map[DataOffset::key(l_e,i)] = {xs, ys};
+
+         // DOFs
          l_fes->GetElementDofs(l_e, dofs), l_fes->AdjustVDofs(dofs);
          for (int k = 0; k < dofs.Size(); k++)
          {
@@ -630,8 +648,6 @@ bool DataState::SetNewMeshAndSolution(DataState new_state,
        new_state.grid_f->Size());
    if (new_state.mesh->SpaceDimension() == mesh->SpaceDimension() &&
        new_state.grid_f->VectorDim() == grid_f->VectorDim())
-      // 🔥🔥🔥🔥 sol mismatch when flat !!
-      //  new_state.grid_f->Size() == grid_f->Size())
    {
       dbg("ResetMeshAndSolution");
       ResetMeshAndSolution(new_state, vs);
@@ -655,26 +671,29 @@ void DataState::ResetMeshAndSolution(DataState &ss, VisualizationScene* vs)
    {
       if (ss.grid_f->VectorDim() == 1)
       {
-         VisualizationSceneSolution *vss =
-            dynamic_cast<VisualizationSceneSolution *>(vs);
+         dbg("2D SCALAR");
+         auto *vss = dynamic_cast<VisualizationSceneSolution *>(vs);
          // use the local vector as pointer is invalid after the move
          ss.grid_f->GetNodalValues(sol);
+         // update the offsets before the mesh and solution
+         vss->SetDataOffsets(ss.offsets.get());
          vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &sol,
                                  ss.grid_f.get());
-         vss->SetDataOffsets(ss.offsets.get()); // 🔥🔥🔥🔥
       }
       else
       {
+         dbg("2D VECTOR");
          auto *vsv = dynamic_cast<VisualizationSceneVector *>(vs);
+         vsv->SetDataOffsets(ss.offsets.get());
          vsv->NewMeshAndSolution(*ss.grid_f, ss.mesh_quad.get());
       }
    }
    else
    {
+      dbg("3D");
       if (ss.grid_f->VectorDim() == 1)
       {
-         VisualizationSceneSolution3d *vss =
-            dynamic_cast<VisualizationSceneSolution3d *>(vs);
+         auto *vss = dynamic_cast<VisualizationSceneSolution3d *>(vs);
          // use the local vector as pointer is invalid after the move
          ss.grid_f->GetNodalValues(sol);
          vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &sol,

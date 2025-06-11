@@ -25,6 +25,8 @@ struct DataOffset
 {
    int nelems, nedges, nverts;
    std::map<uint64_t, int> dof_map;
+   struct xy {double x,y;};
+   std::map<uint64_t, xy> exy_map;
    static std::uint64_t key(uint32_t i, uint32_t j)
    {
       return (uint64_t)i << 32 | (uint32_t)j;

@@ -36,6 +36,9 @@ void VisualizationSceneScalarData::SetDataOffsets(const DataOffsets
                                                   *data_offsets)
 {
    dbg("\x1b[33m[SET NEW DATA OFFSETS]]");
+   MFEM_VERIFY(data_offsets != nullptr,
+               "VisualizationSceneScalarData::SetDataOffsets: "
+               "data_offsets is null");
    offsets = data_offsets;
 }
 

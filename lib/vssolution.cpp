@@ -1883,15 +1883,16 @@ void VisualizationSceneSolution::PrepareElementNumbering1(e_offset_fn offset)
    Array<int> vertices;
 
    int ne = mesh->GetNE();
-   for (int k = 0; k < ne; k++)
+   const bool check = offsets && shrink == 1.0 && shrinkmat == 1.0;
+   for (int e = 0; e < ne; e++)
    {
-      if (!el_attr_to_show[mesh->GetAttribute(k) - 1]) { continue; }
+      if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
 
-      mesh->GetPointMatrix (k, pointmat);
-      mesh->GetElementVertices (k, vertices);
+      mesh->GetPointMatrix (e, pointmat);
+      mesh->GetElementVertices (e, vertices);
       int nv = vertices.Size();
 
-      ShrinkPoints(pointmat, k, 0, 0);
+      ShrinkPoints(pointmat, e, 0, 0);
 
       double xs = 0.0;
       double ys = 0.0;
@@ -1906,12 +1907,26 @@ void VisualizationSceneSolution::PrepareElementNumbering1(e_offset_fn offset)
       ys /= nv;
       us /= nv;
 
-      double ds = GetElementLengthScale(k);
+      if (check)
+      {
+         const int attr = mesh->GetAttribute(e);
+         const int rank = attr - 1;
+         assert(rank >= 0 && rank < (int)offsets->size());
+         const int l_e = offset(e);
+         const auto key = DataOffset::key(l_e,rank);
+         const DataOffset::xy xy = (*offsets)[rank].exy_map.at(key);
+         // dbg("Element {}: x:{} vs. {} y:{} vs. {})", e, xy.x, xy.y, xs, ys);
+         constexpr double eps = 1e-12;
+         assert(fabs(xy.x - xs) < eps && fabs(xy.y - ys) < eps);
+      }
+
+      double ds = GetElementLengthScale(e);
       double dx = 0.05*ds;
 
       double xx[3] = {xs,ys,us};
-      DrawNumberedMarker(e_nums_buf,xx,dx,offset(k)/*k*/);
+      DrawNumberedMarker(e_nums_buf,xx,dx,offset(e)/*k*/);
    }
+   if (check) { dbg("Elements center match! ✅✅✅✅"); }
 
    updated_bufs.emplace_back(&e_nums_buf);
 }
@@ -1923,26 +1938,44 @@ void VisualizationSceneSolution::PrepareElementNumbering2(e_offset_fn offset)
    Vector values;
 
    e_nums_buf.clear();
+   const bool check = offsets && shrink == 1.0 && shrinkmat == 1.0;
 
    int ne = mesh->GetNE();
-   for (int i = 0; i < ne; i++)
+   for (int e = 0; e < ne; e++)
    {
-      if (!el_attr_to_show[mesh->GetAttribute(i)-1]) { continue; }
+      if (!el_attr_to_show[mesh->GetAttribute(e)-1]) { continue; }
 
       center_ir.IntPoint(0) =
-         Geometries.GetCenter(mesh->GetElementBaseGeometry(i));
-      GetRefinedValues (i, center_ir, values, pointmat);
+         Geometries.GetCenter(mesh->GetElementBaseGeometry(e));
+      GetRefinedValues (e, center_ir, values, pointmat);
 
       double xc = pointmat(0,0);
       double yc = pointmat(1,0);
       double uc = values(0);
 
-      double ds = GetElementLengthScale(i);
+      double ds = GetElementLengthScale(e);
       double dx = 0.05*ds;
 
       double xx[3] = {xc,yc,uc};
-      DrawNumberedMarker(e_nums_buf,xx,dx,offset(i)/*i*/);
+      DrawNumberedMarker(e_nums_buf,xx,dx,offset(e));
+
+      // #ifdef MFEM_DEBUG
+      if (check)
+      {
+         const int attr = mesh->GetAttribute(e);
+         const int rank = attr - 1;
+         assert(rank >= 0 && rank < (int)offsets->size());
+         const int l_e = offset(e);
+         const auto key = DataOffset::key(l_e,rank);
+         const DataOffset::xy xy = (*offsets)[rank].exy_map.at(key);
+         // dbg("g_e:{} l_e:{} rank:{} x:({:f}:{:f}) y:({:f},{:f})",
+         //     e, l_e, rank, xy.x, xc, xy.y, yc);
+         constexpr double eps = 1e-12;
+         assert(fabs(xy.x - xc) < eps && fabs(xy.y - yc) < eps);
+      }
+      // #endif
    }
+   if (check) { dbg("Elements center match! ✅✅✅✅"); }
 
    updated_bufs.emplace_back(&e_nums_buf);
 }
@@ -2141,10 +2174,7 @@ void VisualizationSceneSolution::PrepareDofNumbering()
       const int attr = mesh->GetAttribute(e);
       const int rank = attr - 1;
       assert(rank >= 0 && rank < (int)offsets->size());
-      const size_t nelems = (*offsets)[rank].nelems;
-      assert(e >= (int)nelems);
-      const int e_rank = e - nelems;
-      const auto key = DataOffset::key(e_rank,q);
+      const auto key = DataOffset::key(e,q);
       return (*offsets)[rank].dof_map.at(key);
    };
 

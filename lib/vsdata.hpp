@@ -68,6 +68,7 @@ public:
 protected:
    mfem::Mesh   *mesh{}, *mesh_coarse{};
    mfem::Vector *sol{};
+   const DataOffsets *offsets{};
 
    double minv, maxv;
 
@@ -98,8 +99,6 @@ protected:
 
    int ruler_on;
    double ruler_x, ruler_y, ruler_z;
-
-   const DataOffsets *offsets{};
 
    // autoscale controls the behavior when the mesh/solution are updated:
    // 0 - do not change the bounding box and the value range

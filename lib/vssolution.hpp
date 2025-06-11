@@ -136,8 +136,7 @@ public:
    void PrepareElementNumbering1(e_offset_fn);
    void PrepareElementNumbering2(e_offset_fn);
    void PrepareVertexNumbering();
-   using v_offset_fn =
-      std::function<int(const int, const mfem::Array<int>&, const int)>;
+   using v_offset_fn = std::function<int(const int, const int)>;
    void PrepareVertexNumbering1(v_offset_fn);
    void PrepareVertexNumbering2(v_offset_fn);
    void PrepareEdgeNumbering();

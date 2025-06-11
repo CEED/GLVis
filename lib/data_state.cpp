@@ -63,6 +63,7 @@ DataState &DataState::operator=(DataState &&ss)
    fix_elem_orient = ss.fix_elem_orient;
    save_coloring = ss.save_coloring;
    keep_attr = ss.keep_attr;
+   assert(!keep_attr);
 
    return *this;
 }
@@ -94,21 +95,15 @@ void DataState::ComputeDofsOffsets(std::vector<mfem::GridFunction*> &gf_array)
       auto &offset = offsets->operator[](i);
       for (int l_e = 0; l_e < l_mesh->GetNE(); l_e++, g_e++)
       {
-         // Elements
+#ifdef GLVIS_DEBUG
+         // Store elements centers
          l_mesh->GetPointMatrix(l_e, pointmat);
          const int nv = pointmat.Width();
          double xs = 0.0, ys = 0.0;
-         // dbg("\tElement local #{} (global #{})", l_e, g_e);
-         for (int j = 0; j < nv; j++)
-         {
-            // dbg("\t\tVertex #{}: ({:f}, {:f})", j, pointmat(0,j), pointmat(1,j));
-            xs += pointmat(0,j), ys += pointmat(1,j);
-         }
+         for (int j = 0; j < nv; j++) { xs += pointmat(0,j), ys += pointmat(1,j); }
          xs /= nv, ys /= nv;
-         // dbg("\tElement local #{} (global #{}): xs:{} ys:{}", l_e, g_e, xs, ys);
          offset.exy_map[DataOffset::key(l_e,i)] = {xs, ys};
-
-         // DOFs
+#endif // end GLVIS_DEBUG
          l_fes->GetElementDofs(l_e, dofs), l_fes->AdjustVDofs(dofs);
          for (int k = 0; k < dofs.Size(); k++)
          {

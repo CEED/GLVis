@@ -1861,7 +1861,7 @@ void VisualizationSceneSolution::PrepareElementNumbering()
       const int rank = mesh->GetAttribute(e) - 1;
       assert(rank >= 0 && rank < (int)offsets->size());
       const int nelems = (*offsets)[rank].nelems;
-      assert(e >= (int)nelems);
+      assert(e >= nelems);
       return e - nelems;
    };
 
@@ -1882,9 +1882,7 @@ void VisualizationSceneSolution::PrepareElementNumbering1(e_offset_fn offset)
    DenseMatrix pointmat;
    Array<int> vertices;
 
-   int ne = mesh->GetNE();
-   const bool check = offsets && shrink == 1.0 && shrinkmat == 1.0;
-   for (int e = 0; e < ne; e++)
+   for (int e = 0; e < mesh->GetNE(); e++)
    {
       if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
 
@@ -1907,26 +1905,25 @@ void VisualizationSceneSolution::PrepareElementNumbering1(e_offset_fn offset)
       ys /= nv;
       us /= nv;
 
-      if (check)
+#ifdef GLVIS_DEBUG
+      if (offsets && shrink == 1.0 && shrinkmat == 1.0)
       {
-         const int attr = mesh->GetAttribute(e);
-         const int rank = attr - 1;
+         constexpr double eps = 1e-12;
+         const int rank = mesh->GetAttribute(e) - 1;
          assert(rank >= 0 && rank < (int)offsets->size());
          const int l_e = offset(e);
          const auto key = DataOffset::key(l_e,rank);
          const DataOffset::xy xy = (*offsets)[rank].exy_map.at(key);
-         // dbg("Element {}: x:{} vs. {} y:{} vs. {})", e, xy.x, xy.y, xs, ys);
-         constexpr double eps = 1e-12;
          assert(fabs(xy.x - xs) < eps && fabs(xy.y - ys) < eps);
       }
+#endif // GLVIS_DEBUG
 
       double ds = GetElementLengthScale(e);
       double dx = 0.05*ds;
 
       double xx[3] = {xs,ys,us};
-      DrawNumberedMarker(e_nums_buf,xx,dx,offset(e)/*k*/);
+      DrawNumberedMarker(e_nums_buf,xx,dx,offset(e));
    }
-   if (check) { dbg("Elements center match! ✅✅✅✅"); }
 
    updated_bufs.emplace_back(&e_nums_buf);
 }
@@ -1938,7 +1935,6 @@ void VisualizationSceneSolution::PrepareElementNumbering2(e_offset_fn offset)
    Vector values;
 
    e_nums_buf.clear();
-   const bool check = offsets && shrink == 1.0 && shrinkmat == 1.0;
 
    int ne = mesh->GetNE();
    for (int e = 0; e < ne; e++)
@@ -1959,39 +1955,33 @@ void VisualizationSceneSolution::PrepareElementNumbering2(e_offset_fn offset)
       double xx[3] = {xc,yc,uc};
       DrawNumberedMarker(e_nums_buf,xx,dx,offset(e));
 
-      // #ifdef MFEM_DEBUG
-      if (check)
+#ifdef GLVIS_DEBUG
+      if (offsets && shrink == 1.0 && shrinkmat == 1.0)
       {
-         const int attr = mesh->GetAttribute(e);
-         const int rank = attr - 1;
+         constexpr double eps = 1e-12;
+         const int rank = mesh->GetAttribute(e) - 1;
          assert(rank >= 0 && rank < (int)offsets->size());
          const int l_e = offset(e);
          const auto key = DataOffset::key(l_e,rank);
          const DataOffset::xy xy = (*offsets)[rank].exy_map.at(key);
-         // dbg("g_e:{} l_e:{} rank:{} x:({:f}:{:f}) y:({:f},{:f})",
-         //     e, l_e, rank, xy.x, xc, xy.y, yc);
-         constexpr double eps = 1e-12;
          assert(fabs(xy.x - xc) < eps && fabs(xy.y - yc) < eps);
       }
-      // #endif
+#endif // GLVIS_DEBUG
    }
-   if (check) { dbg("Elements center match! ✅✅✅✅"); }
 
    updated_bufs.emplace_back(&e_nums_buf);
 }
 
 void VisualizationSceneSolution::PrepareVertexNumbering()
 {
-   auto offset = [&](const int e, const Array<int> &vertices, const int i)
+   auto offset = [&](const int e, const int v)
    {
-      const int vertice = vertices[i];
-      if (!offsets) { return vertice; }
-      const int attr = mesh->GetAttribute(e);
-      const int rank = attr - 1;
+      if (!offsets) { return v; }
+      const int rank = mesh->GetAttribute(e) - 1;
       assert(rank >= 0 && rank < (int)offsets->size());
       const int nverts = (*offsets)[rank].nverts;
-      assert(vertice >= (int)nverts);
-      return vertice - nverts;
+      assert(v >= nverts);
+      return v - nverts;
    };
 
    if (shading == Shading::Noncomforming)
@@ -2015,15 +2005,15 @@ void VisualizationSceneSolution::PrepareVertexNumbering1(v_offset_fn offset)
    // elements or domains are shrunk.
 
    const int ne = mesh->GetNE();
-   for (int k = 0; k < ne; k++)
+   for (int e = 0; e < ne; e++)
    {
-      if (!el_attr_to_show[mesh->GetAttribute(k) - 1]) { continue; }
+      if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
 
-      mesh->GetPointMatrix (k, pointmat);
-      mesh->GetElementVertices (k, vertices);
+      mesh->GetPointMatrix(e, pointmat);
+      mesh->GetElementVertices(e, vertices);
       int nv = vertices.Size();
 
-      double ds = GetElementLengthScale(k);
+      double ds = GetElementLengthScale(e);
       double xs = 0.05*ds;
 
       for (int j = 0; j < nv; j++)
@@ -2033,7 +2023,7 @@ void VisualizationSceneSolution::PrepareVertexNumbering1(v_offset_fn offset)
          double u = LogVal((*sol)(vertices[j]));
 
          double xx[3] = {x,y,u};
-         DrawNumberedMarker(v_nums_buf,xx,xs, offset(k,vertices,j)/*vertices[j]*/);
+         DrawNumberedMarker(v_nums_buf, xx, xs, offset(e, vertices[j]));
       }
    }
 
@@ -2071,7 +2061,7 @@ void VisualizationSceneSolution::PrepareVertexNumbering2(v_offset_fn offset)
          double u = values[j];
 
          double xx[3] = {xv,yv,u};
-         DrawNumberedMarker(v_nums_buf,xx,xs,offset(i,vertices,j)/*vertices[j]*/);
+         DrawNumberedMarker(v_nums_buf, xx, xs, offset(i, vertices[j]));
       }
    }
 
@@ -2090,12 +2080,11 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
    DenseMatrix p;
    Array<int> vertices, edges, edges_ori;
 
-   auto delta = [&](const int e, const int i)
+   auto offset = [&](const int e, const int i)
    {
       const int edge = edges[i];
       if (!offsets) { return edge; }
-      const int attr = mesh->GetAttribute(e);
-      const int rank = attr - 1;
+      const int rank = mesh->GetAttribute(e) - 1;
       assert(rank >= 0 && rank < (int)offsets->size());
       const int nedges = (*offsets)[rank].nedges;
       assert(edge >= (int)nedges);
@@ -2119,7 +2108,7 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
             const double m[2] = {0.5 * (p(0,0) + p(0,1)), 0.5 * (p(1,0) + p(1,1))};
             const double u = LogVal(0.5 * ((*sol)(vertices[0]) + (*sol)(vertices[1])));
             const double xx[3] = {m[0], m[1], u};
-            DrawNumberedMarker(f_nums_buf, xx, dx, delta(e,i));
+            DrawNumberedMarker(f_nums_buf, xx, dx, offset(e,i));
          }
       }
    }
@@ -2143,7 +2132,7 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
          {
             const int j = ij[i];
             const double xx[3] = { p(0,j), p(1,j), vals(j) };
-            DrawNumberedMarker(f_nums_buf, xx, dx, delta(e,ie[i]));
+            DrawNumberedMarker(f_nums_buf, xx, dx, offset(e,ie[i]));
          }
       }
    }

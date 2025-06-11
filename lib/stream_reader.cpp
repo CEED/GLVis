@@ -318,9 +318,7 @@ int StreamReader::ReadStreams(const StreamCollection &input_streams)
    {
       dbg("Now SetGridFunction");
       data.SetGridFunction(new GridFunction(data.mesh.get(), gf_array.data(), nproc));
-
-      dbg("Now ComputeDofsOffsets");
-      data.ComputeDofsOffsets(gf_array);
+      if (!data.keep_attr) { data.ComputeDofsOffsets(gf_array); }
    }
    else if (qf_count > 0)
    {

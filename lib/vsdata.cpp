@@ -32,6 +32,13 @@ using namespace mfem;
 
 const char *strings_off_on[] = { "off", "on" };
 
+void VisualizationSceneScalarData::SetDataOffsets(const DataOffsets
+                                                  *data_offsets)
+{
+   dbg("\x1b[33m[SET NEW DATA OFFSETS]]");
+   offsets = data_offsets;
+}
+
 void VisualizationSceneScalarData::FixValueRange()
 {
    double am = fabs(minv);

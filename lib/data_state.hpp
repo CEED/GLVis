@@ -12,6 +12,7 @@
 #ifndef GLVIS_DATA_STATE_HPP
 #define GLVIS_DATA_STATE_HPP
 
+#include <map>
 #include <string>
 #include <memory>
 #include <vector>
@@ -19,6 +20,18 @@
 #include <mfem.hpp>
 
 #include "openglvis.hpp"
+
+struct DataOffset
+{
+   int nelems, nedges, nverts;
+   std::map<uint64_t, int> dof_map;
+   static std::uint64_t key(uint32_t i, uint32_t j)
+   {
+      return (uint64_t)i << 32 | (uint32_t)j;
+   };
+   DataOffset() = default;
+};
+using DataOffsets = std::vector<DataOffset>;
 
 struct DataState
 {
@@ -49,11 +62,6 @@ struct DataState
 private:
    friend class StreamReader;
    friend class FileReader;
-   struct offsets_t
-   {
-      size_t ndofs, nvdofs, nedofs, nfdofs, nddofs;
-      offsets_t() = default;
-   };
    struct
    {
       std::unique_ptr<mfem::Mesh> mesh;
@@ -61,7 +69,7 @@ private:
       std::unique_ptr<mfem::GridFunction> grid_f;
       std::unique_ptr<mfem::QuadratureFunction> quad_f;
       std::unique_ptr<mfem::DataCollection> data_coll;
-      std::unique_ptr<offsets_t> offsets;
+      std::unique_ptr<DataOffsets> offsets;
    } internal;
 
    FieldType type {FieldType::UNKNOWN};
@@ -83,7 +91,7 @@ public:
    const std::unique_ptr<mfem::GridFunction> &grid_f{internal.grid_f};
    const std::unique_ptr<mfem::QuadratureFunction> &quad_f{internal.quad_f};
    const std::unique_ptr<mfem::DataCollection> &data_coll{internal.data_coll};
-   const std::unique_ptr<offsets_t> &offsets{internal.offsets};
+   const std::unique_ptr<DataOffsets> &offsets{internal.offsets};
 
    std::string keys;
    bool fix_elem_orient{false};
@@ -102,8 +110,8 @@ public:
        @see SetMesh(std::unique_ptr<mfem::Mesh> &&pmesh) */
    void SetMesh(mfem::Mesh *mesh);
 
-   /// Set the offsets from the grid function array
-   void SetOffsets(std::vector<mfem::GridFunction*> &gf_array);
+   /// Compute the dofs offsets from the grid function vector
+   void ComputeDofsOffsets(std::vector<mfem::GridFunction*> &gf_array);
 
    /// Set a mesh (unique pointer version)
    /** Sets the mesh and resets grid/quadrature functions if they do not use

@@ -132,11 +132,14 @@ public:
 
    void PrepareNumbering(bool invalidate = true);
    void PrepareElementNumbering();
-   void PrepareElementNumbering1();
-   void PrepareElementNumbering2();
+   using e_offset_fn = std::function<int(const int)>;
+   void PrepareElementNumbering1(e_offset_fn);
+   void PrepareElementNumbering2(e_offset_fn);
    void PrepareVertexNumbering();
-   void PrepareVertexNumbering1();
-   void PrepareVertexNumbering2();
+   using v_offset_fn =
+      std::function<int(const int, const mfem::Array<int>&, const int)>;
+   void PrepareVertexNumbering1(v_offset_fn);
+   void PrepareVertexNumbering2(v_offset_fn);
    void PrepareEdgeNumbering();
    void PrepareDofNumbering();
 

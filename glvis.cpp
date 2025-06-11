@@ -189,6 +189,9 @@ bool GLVisInitVis(StreamCollection input_streams)
             // the 'jet-like' palette is used in 2D, see vssolution.cpp).
             vs->palette.SetIndex(4);
          }
+         // MFEM_VERIFY(stream_state.offsets,
+         //             "Offsets must be set for VisualizationSceneSolution");
+         vs->SetDataOffsets(stream_state.offsets.get());
       }
       else if (stream_state.mesh->SpaceDimension() == 3)
       {
@@ -233,6 +236,7 @@ bool GLVisInitVis(StreamCollection input_streams)
    {
       if (stream_state.mesh->SpaceDimension() == 2)
       {
+         dbg("VECTOR 2D");
          if (stream_state.grid_f)
          {
             vs = new VisualizationSceneVector(*stream_state.grid_f);
@@ -242,9 +246,11 @@ bool GLVisInitVis(StreamCollection input_streams)
             vs = new VisualizationSceneVector(*stream_state.mesh, stream_state.solu,
                                               stream_state.solv, stream_state.mesh_quad.get());
          }
+         vs->SetDataOffsets(stream_state.offsets.get());
       }
       else if (stream_state.mesh->SpaceDimension() == 3)
       {
+         dbg("VECTOR 3D");
          if (stream_state.grid_f)
          {
             stream_state.ProjectVectorFEGridFunction();
@@ -1193,6 +1199,8 @@ public:
       };
       dbg("Moving state & input_streams to handler...");
       dbg("state.sol1: {}", state.sol.Size());
+      dbg("state.offsets:{} state.offsets.size: {}",
+          fmt::ptr(state.offsets.get()), state.offsets?state.offsets->size():-1);
       handler = std::thread {funcThread,
                              std::move(state),
                              std::move(input_streams)};

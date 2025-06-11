@@ -313,12 +313,14 @@ int StreamReader::ReadStreams(const StreamCollection &input_streams)
 
    dbg("Now SetMesh");
    data.SetMesh(new Mesh(mesh_array.data(), nproc));
-   data.SetOffsets(gf_array);
 
    if (gf_count > 0)
    {
       dbg("Now SetGridFunction");
       data.SetGridFunction(new GridFunction(data.mesh.get(), gf_array.data(), nproc));
+
+      dbg("Now ComputeDofsOffsets");
+      data.ComputeDofsOffsets(gf_array);
    }
    else if (qf_count > 0)
    {

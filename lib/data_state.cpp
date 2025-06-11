@@ -74,46 +74,35 @@ void DataState::SetMesh(Mesh *mesh_)
    SetMesh(std::move(internal.mesh));
 }
 
-void DataState::SetOffsets(std::vector<mfem::GridFunction*> &gf_array)
+void DataState::ComputeDofsOffsets(std::vector<mfem::GridFunction*> &gf_array)
 {
    const int nprocs = static_cast<int>(gf_array.size());
-   dbg("{} grid functions", nprocs);
+   dbg("\x1b[33m[COMPUTE OFFSETS] {} ranks", nprocs);
    MFEM_VERIFY(!gf_array.empty(), "No grid functions provided for offsets");
 
-   auto dso = new DataState::offsets_t[nprocs+1] {};
+   internal.offsets.reset(new DataOffsets(nprocs));
+
+   Array<int> dofs;
    for (int i = 0; i < nprocs; i++)
    {
-      FiniteElementSpace *l_fes = gf_array[i]->FESpace();
-      const int l_ndofs  = l_fes->GetNDofs();
-      const int l_nvdofs = l_fes->GetNVDofs();
-      const int l_nedofs = l_fes->GetNEDofs();
-      const int l_nfdofs = l_fes->GetNFDofs();
-      const int l_nddofs = l_ndofs - (l_nvdofs + l_nedofs + l_nfdofs);
-      // dbg("[local] fes {}: ndofs={}, nvdofs={}, nedofs={}, nfdofs={}, nddofs={}",
-      //     i, l_ndofs, l_nvdofs, l_nedofs, l_nfdofs, l_nddofs);
-
-      dso[i+1].ndofs = dso[i].ndofs + l_ndofs;
-      dso[i+1].nvdofs = dso[i].nvdofs + l_nvdofs;
-      dso[i+1].nedofs = dso[i].nedofs + l_nedofs;
-      dso[i+1].nfdofs = dso[i].nfdofs + l_nfdofs;
-      dso[i+1].nddofs = dso[i].nddofs + l_nddofs;
-      // dbg("[local] {} ndofs:{} nvdofs:{}, nedofs:{} nfdofs:{} nddofs:{}",
-      //     i+1, dso[i+1].ndofs, dso[i+1].nvdofs, dso[i+1].nedofs,
-      //     dso[i+1].nfdofs, dso[i+1].nddofs);
-   }
-   internal.offsets.reset(dso);
-
-   {
-      FiniteElementSpace *fes0 = gf_array[0]->FESpace();
-      const auto fec_owned = FiniteElementCollection::New(fes0->FEColl()->Name());
-      const auto vdim = fes0->GetVDim();
-      const auto ordering = fes0->GetOrdering();
-      FiniteElementSpace fes(internal.mesh.get(), fec_owned, vdim, ordering);
-
-      assert((int)dso[nprocs].nvdofs == fes.GetNVDofs());
-      assert((int)dso[nprocs].nedofs == fes.GetNEDofs());
-      assert((int)dso[nprocs].nfdofs == fes.GetNFDofs());
-      // assert(false && "✅✅✅✅");
+      const FiniteElementSpace *l_fes = gf_array[i]->FESpace();
+      const Mesh *l_mesh = l_fes->GetMesh();
+      // store the dofs numbers as they are fespace dependent
+      auto &offset = offsets->operator[](i);
+      for (int l_e = 0, g_e = 0; l_e < l_mesh->GetNE(); l_e++, g_e++)
+      {
+         l_fes->GetElementDofs(l_e, dofs), l_fes->AdjustVDofs(dofs);
+         for (int k = 0; k < dofs.Size(); k++)
+         {
+            offset.dof_map[DataOffset::key(g_e,k)] = dofs[k];
+         }
+      }
+      if (i + 1 == nprocs) { continue; }
+      auto &next = offsets->operator[](i+1);
+      // for NE, NV and NEdges, we accumulate the values
+      next.nelems = offset.nelems + l_mesh->GetNE();
+      next.nedges = offset.nedges + l_mesh->GetNEdges();
+      next.nverts = offset.nverts + l_mesh->GetNV();
    }
 }
 
@@ -672,6 +661,7 @@ void DataState::ResetMeshAndSolution(DataState &ss, VisualizationScene* vs)
          ss.grid_f->GetNodalValues(sol);
          vss->NewMeshAndSolution(ss.mesh.get(), ss.mesh_quad.get(), &sol,
                                  ss.grid_f.get());
+         vss->SetDataOffsets(ss.offsets.get()); // 🔥🔥🔥🔥
       }
       else
       {

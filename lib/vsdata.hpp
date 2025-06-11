@@ -15,6 +15,7 @@
 #include <mfem.hpp>
 #include "openglvis.hpp"
 #include "aux_vis.hpp"
+#include "data_state.hpp"
 
 extern thread_local std::string plot_caption; // defined in glvis.cpp
 extern thread_local std::string extra_caption; // defined in glvis.cpp
@@ -97,6 +98,8 @@ protected:
 
    int ruler_on;
    double ruler_x, ruler_y, ruler_z;
+
+   const DataOffsets *offsets{};
 
    // autoscale controls the behavior when the mesh/solution are updated:
    // 0 - do not change the bounding box and the value range
@@ -217,6 +220,7 @@ public:
    virtual void PrintState();
 
    mfem::Mesh *GetMesh() { return mesh; }
+   void SetDataOffsets(const DataOffsets *data_offsets);
 
    virtual gl3::SceneInfo GetSceneObjs();
 

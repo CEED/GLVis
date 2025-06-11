@@ -1855,17 +1855,27 @@ double VisualizationSceneSolution::GetElementLengthScale(int k)
 
 void VisualizationSceneSolution::PrepareElementNumbering()
 {
+   auto offset = [&](const int e)
+   {
+      if (!offsets) { return e; }
+      const int rank = mesh->GetAttribute(e) - 1;
+      assert(rank >= 0 && rank < (int)offsets->size());
+      const int nelems = (*offsets)[rank].nelems;
+      assert(e >= (int)nelems);
+      return e - nelems;
+   };
+
    if (shading == Shading::Noncomforming)
    {
-      PrepareElementNumbering2();
+      PrepareElementNumbering2(offset);
    }
    else
    {
-      PrepareElementNumbering1();
+      PrepareElementNumbering1(offset);
    }
 }
 
-void VisualizationSceneSolution::PrepareElementNumbering1()
+void VisualizationSceneSolution::PrepareElementNumbering1(e_offset_fn offset)
 {
    e_nums_buf.clear();
 
@@ -1900,13 +1910,13 @@ void VisualizationSceneSolution::PrepareElementNumbering1()
       double dx = 0.05*ds;
 
       double xx[3] = {xs,ys,us};
-      DrawNumberedMarker(e_nums_buf,xx,dx,k);
+      DrawNumberedMarker(e_nums_buf,xx,dx,offset(k)/*k*/);
    }
 
    updated_bufs.emplace_back(&e_nums_buf);
 }
 
-void VisualizationSceneSolution::PrepareElementNumbering2()
+void VisualizationSceneSolution::PrepareElementNumbering2(e_offset_fn offset)
 {
    IntegrationRule center_ir(1);
    DenseMatrix pointmat;
@@ -1931,7 +1941,7 @@ void VisualizationSceneSolution::PrepareElementNumbering2()
       double dx = 0.05*ds;
 
       double xx[3] = {xc,yc,uc};
-      DrawNumberedMarker(e_nums_buf,xx,dx,i);
+      DrawNumberedMarker(e_nums_buf,xx,dx,offset(i)/*i*/);
    }
 
    updated_bufs.emplace_back(&e_nums_buf);
@@ -1939,17 +1949,29 @@ void VisualizationSceneSolution::PrepareElementNumbering2()
 
 void VisualizationSceneSolution::PrepareVertexNumbering()
 {
+   auto offset = [&](const int e, const Array<int> &vertices, const int i)
+   {
+      const int vertice = vertices[i];
+      if (!offsets) { return vertice; }
+      const int attr = mesh->GetAttribute(e);
+      const int rank = attr - 1;
+      assert(rank >= 0 && rank < (int)offsets->size());
+      const int nverts = (*offsets)[rank].nverts;
+      assert(vertice >= (int)nverts);
+      return vertice - nverts;
+   };
+
    if (shading == Shading::Noncomforming)
    {
-      PrepareVertexNumbering2();
+      PrepareVertexNumbering2(offset);
    }
    else
    {
-      PrepareVertexNumbering1();
+      PrepareVertexNumbering1(offset);
    }
 }
 
-void VisualizationSceneSolution::PrepareVertexNumbering1()
+void VisualizationSceneSolution::PrepareVertexNumbering1(v_offset_fn offset)
 {
    v_nums_buf.clear();
 
@@ -1978,14 +2000,14 @@ void VisualizationSceneSolution::PrepareVertexNumbering1()
          double u = LogVal((*sol)(vertices[j]));
 
          double xx[3] = {x,y,u};
-         DrawNumberedMarker(v_nums_buf,xx,xs,vertices[j]);
+         DrawNumberedMarker(v_nums_buf,xx,xs, offset(k,vertices,j)/*vertices[j]*/);
       }
    }
 
    updated_bufs.emplace_back(&v_nums_buf);
 }
 
-void VisualizationSceneSolution::PrepareVertexNumbering2()
+void VisualizationSceneSolution::PrepareVertexNumbering2(v_offset_fn offset)
 {
    DenseMatrix pointmat;
    Vector values;
@@ -2016,7 +2038,7 @@ void VisualizationSceneSolution::PrepareVertexNumbering2()
          double u = values[j];
 
          double xx[3] = {xv,yv,u};
-         DrawNumberedMarker(v_nums_buf,xx,xs,vertices[j]);
+         DrawNumberedMarker(v_nums_buf,xx,xs,offset(i,vertices,j)/*vertices[j]*/);
       }
    }
 
@@ -2035,6 +2057,18 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
    DenseMatrix p;
    Array<int> vertices, edges, edges_ori;
 
+   auto delta = [&](const int e, const int i)
+   {
+      const int edge = edges[i];
+      if (!offsets) { return edge; }
+      const int attr = mesh->GetAttribute(e);
+      const int rank = attr - 1;
+      assert(rank >= 0 && rank < (int)offsets->size());
+      const int nedges = (*offsets)[rank].nedges;
+      assert(edge >= (int)nedges);
+      return edge - nedges;
+   };
+
    if (shading == Shading::Flat || shading == Shading::Smooth)
    {
       for (int e = 0; e < mesh->GetNE(); e++)
@@ -2052,7 +2086,7 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
             const double m[2] = {0.5 * (p(0,0) + p(0,1)), 0.5 * (p(1,0) + p(1,1))};
             const double u = LogVal(0.5 * ((*sol)(vertices[0]) + (*sol)(vertices[1])));
             const double xx[3] = {m[0], m[1], u};
-            DrawNumberedMarker(f_nums_buf, xx, dx, edges[i]);
+            DrawNumberedMarker(f_nums_buf, xx, dx, delta(e,i));
          }
       }
    }
@@ -2076,7 +2110,7 @@ void VisualizationSceneSolution::PrepareEdgeNumbering()
          {
             const int j = ij[i];
             const double xx[3] = { p(0,j), p(1,j), vals(j) };
-            DrawNumberedMarker(f_nums_buf, xx, dx, edges[ie[i]]);
+            DrawNumberedMarker(f_nums_buf, xx, dx, delta(e,ie[i]));
          }
       }
    }
@@ -2101,6 +2135,19 @@ void VisualizationSceneSolution::PrepareDofNumbering()
    GridFunction h1_sol(&h1_fes, sol->GetData());
    const bool non_conforming_shading = shading == Shading::Noncomforming;
 
+   auto offset = [&](const int e, const int q)
+   {
+      if (!offsets) { return e; }
+      const int attr = mesh->GetAttribute(e);
+      const int rank = attr - 1;
+      assert(rank >= 0 && rank < (int)offsets->size());
+      const size_t nelems = (*offsets)[rank].nelems;
+      assert(e >= (int)nelems);
+      const int e_rank = e - nelems;
+      const auto key = DataOffset::key(e_rank,q);
+      return (*offsets)[rank].dof_map.at(key);
+   };
+
    for (int e = 0; e < mesh->GetNE(); e++)
    {
       if (!el_attr_to_show[mesh->GetAttribute(e) - 1]) { continue; }
@@ -2110,12 +2157,13 @@ void VisualizationSceneSolution::PrepareDofNumbering()
       GetRefinedValues(e, ir, vals, tr, do_shrink);
       rdof_fes.GetElementDofs(e, dofs);
       rdof_fes.AdjustVDofs(dofs);
+
       for (int q = 0; q < ir.GetNPoints(); q++)
       {
          const real_t z = non_conforming_shading ? vals[q] :
                           h1_sol.GetValue(e, ir.IntPoint(q));
          const real_t x[3] = {tr(0,q), tr(1,q), z};
-         DrawNumberedMarker(d_nums_buf, x, dx, dofs[q]);
+         DrawNumberedMarker(d_nums_buf, x, dx, offset(e,q));
       }
    }
    updated_bufs.emplace_back(&d_nums_buf);

@@ -13,6 +13,9 @@
 # introduced.
 cmake_minimum_required(VERSION 3.10)
 
+set(USER_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/user.cmake" CACHE PATH
+  "Path to optional user configuration file.")
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -23,6 +26,13 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 endif ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 
 project(glvis NONE)
+
+# Load user settings
+include("${USER_CONFIG}" OPTIONAL RESULT_VARIABLE USER_CONFIG_LOADED)
+if (USER_CONFIG_LOADED)
+  set(USER_CONFIG_LOADED "LOADED")
+endif()
+message(STATUS "Loading USER_CONFIG = ${USER_CONFIG} (${USER_CONFIG_LOADED})")
 
 # Import MFEM. The following variables can be used to help CMake find MFEM:
 #  * MFEM_DIR - absolute path to the MFEM build or install prefix.

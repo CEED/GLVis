@@ -287,7 +287,7 @@ DESKTOP_SOURCE_FILES = $(COMMON_SOURCE_FILES) $(DESKTOP_ONLY_SOURCE_FILES) $(LOG
 WEB_SOURCE_FILES     = $(COMMON_SOURCE_FILES) $(WEB_ONLY_SOURCE_FILES)
 OBJECT_FILES1        = $(DESKTOP_SOURCE_FILES:.cpp=.o)
 OBJECT_FILES         = $(OBJECT_FILES1:.c=.o) $(OBJC_SOURCE_FILES:.mm=.o)
-BYTECODE_FILES       = $(WEB_SOURCE_FILES:.cpp=.bc)
+BYTECODE_FILES       = $(WEB_SOURCE_FILES:.cpp=.jso)
 
 # Targets
 .PHONY: clean distclean install status info opt debug style js
@@ -301,7 +301,7 @@ BYTECODE_FILES       = $(WEB_SOURCE_FILES:.cpp=.bc)
 %.o: %.mm
 	$(CCC) -o $@ -c $<
 
-%.bc: %.cpp
+%.jso: %.cpp
 	$(EMCC) $(EMCC_OPTS) $(GLVIS_FLAGS) -c $< -o $@
 
 glvis:	glvis.cpp lib/libglvis.a $(CONFIG_MK) $(MFEM_LIB_FILE)
@@ -336,7 +336,7 @@ lib/libglvis.js: $(BYTECODE_FILES) $(CONFIG_MK) $(MFEM_LIB_FILE)
 	$(EMCC) $(EMCC_OPTS) -o $@ $(BYTECODE_FILES) $(EMCC_LIBS) --embed-file $(FONT_FILE)
 
 clean:
-	rm -rf lib/*.o lib/*.bc lib/gl/*.o lib/gl/*.bc lib/*~ *~ glvis
+	rm -rf lib/*.o lib/*.jso lib/gl/*.o lib/gl/*.jso lib/*~ *~ glvis
 	rm -rf $(LOGO_FILE_CPP) share/*.o
 	rm -rf lib/libglvis.a lib/libglvis.js *.dSYM
 	rm -rf GLVis.app
